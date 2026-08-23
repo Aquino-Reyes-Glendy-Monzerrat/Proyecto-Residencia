@@ -1,0 +1,576 @@
+{
+  "usuarios": [
+    {
+      "id": "1",
+      "nombre": "Admin Principal",
+      "email": "admin@itc.edu.mx",
+      "password": "123456",
+      "rol": "admin",
+      "estado": "activo"
+    },
+    {
+      "id": "2",
+      "nombre": "Secretaria",
+      "email": "secretaria@itc.edu.mx",
+      "password": "123456",
+      "rol": "secretaria",
+      "estado": "activo"
+    },
+    {
+      "id": "3",
+      "nombre": "Ana Chan",
+      "email": "ana@itc.edu.mx",
+      "password": "123456",
+      "rol": "apoyo",
+      "estado": "activo"
+    },
+    {
+      "id": "5",
+      "nombre": "Mario Vicente González Robles",
+      "email": "director@itc.edu.mx",
+      "password": "123456",
+      "rol": "director",
+      "estado": "activo"
+    },
+    {
+      "id": "6",
+      "nombre": "María de los Ángeles Navarrete Marneou",
+      "email": "subdireccion@itc.edu.mx",
+      "password": "123456",
+      "rol": "subdirectora",
+      "estado": "activo"
+    }
+  ],
+  "alumnos": [
+    {
+      "id": "1",
+      "numero_control": "21390816",
+      "nombre": "Jose Miguel Alvarado Chuc",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    },
+    {
+      "id": "2",
+      "numero_control": "20390776",
+      "nombre": "Julio Manuel Guzman Zarrabal",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    },
+    {
+      "id": "3",
+      "numero_control": "21390319",
+      "nombre": "Rodrigo Alexander Can Cime ",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    },
+    {
+      "id": "4",
+      "numero_control": "21390340",
+      "nombre": "Roberto Adrian Dzul Vazquez",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    }
+  ],
+  "docentes": [
+    {
+      "id": "1",
+      "nombre": "Blandy Berenice Pamplona Solís",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "DOCTORADO EN TECNOLOGÍAS DE INFORMACIÓN",
+      "abreviatura": "DRA."
+    },
+    {
+      "id": "2",
+      "nombre": "Lucy Guadalupe Cárdenas Quijano",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "LICENCIATURA EN INFORMÁTICA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "3",
+      "nombre": "Jose Luis Octavio Rodriguez Angulo",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN ADMINISTRACIÓN",
+      "abreviatura": "DR."
+    },
+    {
+      "id": "4",
+      "nombre": "Zarina Maryela Basulto Álvarez",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "MAESTRÍA EN CIENCIAS EN PLANIFICACIÓN DE EMPRESAS Y DESARROLLO REGIONAL",
+      "abreviatura": "M.C."
+    },
+    {
+      "id": "5",
+      "nombre": "Carlos Eduardo Azueta León",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "DR."
+    },
+    {
+      "id": "6",
+      "nombre": "Julio Alejandro Carrillo Alemán",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "M.S.C."
+    },
+    {
+      "id": "7",
+      "nombre": "Agustín Esquivel Pat",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "LICENCIATURA EN INFORMÁTICA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "8",
+      "nombre": "Jorge René Fernández Balderas",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN TECNOLOGÍAS DE INFORMACIÓN",
+      "abreviatura": "M.T.I."
+    },
+    {
+      "id": "9",
+      "nombre": "Carlos Flores Pérez",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "INGENIERÍA",
+      "abreviatura": "ING."
+    },
+    {
+      "id": "10",
+      "nombre": "Juan Carlos García Pantoja",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "LICENCIATURA EN INFORMÁTICA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "11",
+      "nombre": "Laura Yolanda Hidalgo Sánchez",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "LICENCIATURA EN SISTEMAS DE COMPUTACIÓN ADMINISTRATIVA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "12",
+      "nombre": "Isaías May Canche",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN CIENCIAS DE LA COMPUTACIÓN",
+      "abreviatura": "M.C."
+    },
+    {
+      "id": "13",
+      "nombre": "David Humberto Medina Carballo",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN TECNOLOGÍA EDUCATIVA",
+      "abreviatura": "M.T.E."
+    },
+    {
+      "id": "14",
+      "nombre": "Diego Aurelio Miam López",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "LICENCIATURA EN INFORMÁTICA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "15",
+      "nombre": "Roger Ismael Noh Balam",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "DR."
+    },
+    {
+      "id": "16",
+      "nombre": "Manuel Alfredo Pech Palacio",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN CIENCIAS DE LA COMPUTACIÓN",
+      "abreviatura": "DR."
+    },
+    {
+      "id": "17",
+      "nombre": "Miguel Ángel Martínez Cordero",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN ADMINISTRACIÓN ESCOLAR Y EDUCATIVA",
+      "abreviatura": "DR."
+    },
+    {
+      "id": "18",
+      "nombre": "Alberto Mendoza Oliva",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "M.S.C."
+    },
+    {
+      "id": "19",
+      "nombre": "María de los Ángeles Navarrete Marneou",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "MAESTRÍA EN TECNOLOGÍAS DE INFORMACIÓN",
+      "abreviatura": "M.T.I."
+    },
+    {
+      "id": "20",
+      "nombre": "Domitila del Jesús Poot Naal",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "M.S.C."
+    },
+    {
+      "id": "21",
+      "nombre": "Luis Ernesto Rosado Cepeda",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "LICENCIATURA EN INFORMÁTICA",
+      "abreviatura": "LIC."
+    },
+    {
+      "id": "22",
+      "nombre": "Raquel Ivet Saavedra Vargas",
+      "cargo": "Docente",
+      "sexo": "F",
+      "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "M.S.C."
+    },
+    {
+      "id": "23",
+      "nombre": "Benjamín Vargas Ku",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "MAESTRÍA EN SISTEMAS DE INFORMACIÓN (ADMINISTRACIÓN DE LA TECNOLOGÍA INFORMÁTICA)",
+      "abreviatura": "M.S.I."
+    },
+    {
+      "id": "24",
+      "nombre": "Manuel Abraham Zapata Encalada",
+      "cargo": "Docente",
+      "sexo": "M",
+      "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
+      "abreviatura": "DR."
+    }
+  ],
+  "egresados": [
+    {
+      "id": "1",
+      "numero_control": "22390498",
+      "nombre": "José Alejandro Castillo Hoil",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    },
+    {
+      "id": "2",
+      "numero_control": "22190496",
+      "nombre": "Juan Sanchez Lopez",
+      "carrera": "Ingeniería en Sistemas Computacionales"
+    }
+  ],
+  "gruposTutoria": [
+    {
+      "clave": "I1A",
+      "carrera": "I",
+      "semestre": 1,
+      "letra": "A",
+      "periodo": "AGO-DIC",
+      "docenteIds": [
+        "7"
+      ],
+      "id": "SdBkKfxEsvc"
+    },
+    {
+      "clave": "I1B",
+      "carrera": "I",
+      "semestre": 1,
+      "letra": "B",
+      "periodo": "AGO-DIC",
+      "docenteIds": [
+        "18"
+      ],
+      "id": "USY_7h-S-ew"
+    },
+    {
+      "clave": "I1C",
+      "carrera": "I",
+      "semestre": 1,
+      "letra": "C",
+      "periodo": "AGO-DIC",
+      "docenteIds": [
+        "23"
+      ],
+      "id": "nUXeALi_TVo"
+    }
+  ],
+  "plantillas": [
+    {
+      "id": "20",
+      "tipo": "tutorias",
+      "nombre": "Tutorías",
+      "asunto": "Asignación de Tutorías",
+      "cuerpo": "<p>Por este medio se le comunica que ha sido {asignado_texto} como <strong>{tutor_texto}</strong> de {grupo_o_grupos}, durante el periodo <strong>{periodo_texto}</strong>: {lista_grupos}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "1",
+      "tipo": "comision-curso-programa",
+      "nombre": "Comisión - Programa de Actualización Disciplinar",
+      "cuerpo": "<p>En el marco del <strong>{nombre_programa}</strong> y con la finalidad de fortalecer la formación, actualización y capacitación del capital humano; por este medio le informo que ha sido comisionado(a), para trasladarse a la ciudad de <strong>{ciudad_destino}</strong>, para asistir al curso <strong>{numero_curso}</strong> titulado: \"<strong>{nombre_curso}</strong>\" del programa educativo en <strong>{area_curso}</strong>. Dicho curso se llevará a cabo  <strong>{rango_fechas}</strong>{horario_texto}, en {lugar_evento}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "12",
+      "tipo": "comision-externa",
+      "nombre": "Comisión Externa",
+      "cuerpo": "<p>Por este medio, me permito informarle que ha sido {comisionado_texto} para que se traslade a <strong>{ciudad_destino}</strong> los días <strong>{rango_fechas}</strong>, para asistir al <strong>{tipo_actividad}</strong> \"<strong>{nombre_curso}</strong>\".</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "2",
+      "tipo": "comision-interna",
+      "nombre": "Comisión Interna",
+      "cuerpo": "<p>Por este medio se le informa que ha sido {comisionado_texto} para trasladarse el <strong>{fecha_texto}</strong>, <strong>{lugar_evento}</strong>, con la finalidad de <strong>{motivo}</strong>.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "3",
+      "tipo": "memorandum-solventacion-faltas",
+      "nombre": "Memorándum - Solventación de Faltas",
+      "cuerpo": "<p>Por este medio me permito informarle que {articulo_c} <strong>C. {nombre_solicitante}</strong>, se le solicita solventar inasistencias por los siguientes motivos:</p><p>{motivo}</p><p>Sin más por el momento le envío un cordial saludo.</p>"
+    },
+    {
+      "id": "11",
+      "tipo": "memorandum-compactacion-horario",
+      "nombre": "Memorándum - Compactación de Horario",
+      "cuerpo": "<p>Por este medio me permito informarle que {articulo_c} <strong>C. {nombre_solicitante}</strong>, por necesidades propias del departamento, se le autorizó la compactación de horario para el periodo {rango_fechas}, en un horario de <strong>{hora_entrada}</strong> a <strong>{hora_salida} hrs.</strong></p><p>Sin más por el momento le envío un cordial saludo.</p>"
+    },
+    {
+      "id": "4",
+      "tipo": "aceptacion-residencia",
+      "nombre": "Aceptación de Residencia",
+      "asunto": "CARTA DE ACEPTACIÓN",
+      "cuerpo": "<p>Por este medio, me permito hacer de su conocimiento que el (la) <strong>C. {nombre_estudiante}</strong>, alumno(a) de la especialidad de <strong>{carrera}</strong>, con número de control <strong>{numero_control}</strong>, realizará su Residencia Profesional, con el proyecto de: <strong>\"{nombre_proyecto}\"</strong> cubriendo un total de <strong>600 hrs</strong>, iniciando el día <strong>{fecha_inicio_texto}</strong> y concluyendo el día <strong>{fecha_fin_texto}</strong>.</p><p>Sin otro particular, aprovecho la ocasión para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "5",
+      "tipo": "aceptacion-servicio-social",
+      "nombre": "Aceptación Servicio Social",
+      "asunto": "CARTA DE ACEPTACIÓN",
+      "cuerpo": "<p>Por medio del presente, me permito informarle que el (la) <strong>C. {nombre_estudiante}</strong>, con número de control <strong>{numero_control}</strong>, alumno(a) de la carrera <strong>{carrera}</strong>, ha sido aceptado(a) para realizar su Servicio Social en el Departamento de Sistemas y Computación de este instituto, cubriendo un total de <strong>480 horas</strong> en el programa <strong>\"{nombre_programa}\"</strong> en un período comprendido del <strong>{fecha_inicio_texto}</strong> al <strong>{fecha_fin_texto}</strong>.</p><p>Sin otro particular, aprovecho la ocasión para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "6",
+      "tipo": "terminacion-servicio-social",
+      "nombre": "Terminación Servicio Social",
+      "asunto": "CARTA DE TERMINACIÓN",
+      "cuerpo": "<p>Por medio del presente, me permito informarle que el (la) <strong>C. {nombre_estudiante}</strong>, con número de control <strong>{numero_control}</strong>, alumno(a) de la carrera <strong>{carrera}</strong>, ha culminado satisfactoriamente su Servicio Social en el Departamento de Sistemas y Computación de este Instituto, cubriendo un total de <strong>480 horas</strong> en el programa <strong>\"{nombre_programa}\"</strong>, en el período del <strong>{fecha_inicio_texto}</strong> a <strong>{fecha_fin_texto}</strong>.</p><p>Sin otro particular, aprovecho la ocasión para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "7",
+      "tipo": "terminacion-residencia",
+      "nombre": "Terminación de Residencia",
+      "asunto": "CARTA DE TERMINACIÓN",
+      "cuerpo": "<p>Por este medio, me permito informarle que el (la) <strong>C. {nombre_estudiante}</strong>, con Número de control <strong>{numero_control}</strong>, alumno de la carrera de <strong>{carrera}</strong>, ha culminado satisfactoriamente su residencia profesional en el Departamento de Sistemas y Computación de este Instituto, cubriendo un total de <strong>600 horas</strong>, en el programa <strong>\"{nombre_proyecto}\"</strong>, en el período del <strong>{fecha_inicio_texto}</strong> al <strong>{fecha_fin_texto}</strong>.</p><p>Sin otro particular, aprovecho la ocasión para enviarle un cordial saludo.</p>"
+    },
+    {
+      "id": "8",
+      "tipo": "liberacion-proyecto",
+      "nombre": "Liberación de Proyecto",
+      "asunto": "Liberación de Proyecto para Titulación Integral",
+      "cuerpo": null
+    },
+    {
+      "id": "9",
+      "tipo": "revision-tesis",
+      "nombre": "Oficio de Revisión de Tesis",
+      "cuerpo": "<p>Por este medio, informo que el <strong>C. {nombre_estudiante}</strong> es egresado del Instituto Tecnológico de Chetumal desde <strong>{fecha_egreso_mes_texto}</strong>. ",
+      "asunto": ""
+    },
+    {
+      "id": "10",
+      "tipo": "otros",
+      "nombre": "Otros",
+      "cuerpo": "<p style=\"white-space:pre-line;\">{texto_libre}</p>"
+    },
+    {
+      "id": "13",
+      "tipo": "mantenimiento",
+      "nombre": "Solicitud de Mantenimiento Correctivo/Preventivo",
+      "cuerpo": null
+    }
+  ],
+  "configuracion": {
+    "folio": {
+      "anio": 2026,
+      "prefijo_default": "P",
+      "memorandums": {
+        "actual": 0,
+        "reservados": []
+      },
+      "general": {
+        "actual": 0,
+        "reservados": []
+      }
+    },
+    "estilo": {
+      "fuente": "'Noto Sans', Arial, sans-serif",
+      "interlineado": 1.15,
+      "tamano_encabezado": 10,
+      "tamano_destinatario": 10,
+      "tamano_cuerpo": 9,
+      "tamano_firma": 10,
+      "margen_superior": 0.5,
+      "margen_derecho": 1.5,
+      "margen_inferior": 1.5,
+      "margen_izquierdo": 2.5,
+      "tamano_asunto": 10,
+      "tamano_ccp": 8,
+      "tamano_lema": 8,
+      "tamano_lema_secundario": 7
+    }
+  },
+  "bitacora": [],
+  "documentos": [],
+  "firmantes": [
+    {
+      "id": "1",
+      "grado": "DR.",
+      "nombre": "MANUEL ABRAHAM ZAPATA ENCALADA",
+      "puesto": "JEFE DEL DEPTO. DE SISTEMAS Y COMPUTACIÓN",
+      "iniciales": "MAZE",
+      "clave": "jefe_depto",
+      "firma": true
+    },
+    {
+      "id": "2",
+      "grado": "DR.",
+      "nombre": "MARIO VICENTE GONZÁLEZ ROBLES",
+      "puesto": "DIRECTOR",
+      "iniciales": "MVGR",
+      "clave": "director",
+      "firma": true
+    },
+    {
+      "id": "3",
+      "grado": "M.T.I.",
+      "nombre": "MARÍA DE LOS ANGELES NAVARRETE MARNEOU",
+      "puesto": "SUBDIRECTORA ACADÉMICA",
+      "iniciales": "MANM",
+      "clave": "subdirectora",
+      "firma": true
+    },
+    {
+      "id": "4",
+      "nombre": "Lizbeth Guadalupe Ocejo Poot",
+      "puesto": "SECRETARIA",
+      "iniciales": "LGOP",
+      "clave": "secretaria",
+      "firma": false,
+      "grado": ""
+    }
+  ],
+  "destinatarios": [
+    {
+      "id": "1",
+      "grado": "DRA.",
+      "nombre": "LOLY VICTORIA TENORIO RODRÍGUEZ",
+      "puesto": "JEFA DEL DEPTO. DE GESTIÓN TEC. Y VINCULACIÓN",
+      "clave": "jefa_gestion_vinculacion"
+    },
+    {
+      "id": "2",
+      "grado": "DR.",
+      "nombre": "RUBEN FABIAN MANZANERO RODRIGUEZ",
+      "puesto": "JEFE DEL DEPARTAMENTO DE RECURSOS HUMANOS",
+      "clave": "jefe_recursos_humanos"
+    },
+    {
+      "id": "3",
+      "grado": "LIC.",
+      "nombre": "CECILIA LORIA TZAB",
+      "puesto": "JEFA DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
+      "clave": "jefa_division_estudios"
+    }
+  ],
+  "grados": [
+    {
+      "id": "1",
+      "valor": "C."
+    },
+    {
+      "id": "2",
+      "valor": "DR."
+    },
+    {
+      "id": "3",
+      "valor": "DRA."
+    },
+    {
+      "id": "4",
+      "valor": "MTRO."
+    },
+    {
+      "id": "5",
+      "valor": "MTRA."
+    },
+    {
+      "id": "6",
+      "valor": "ING."
+    },
+    {
+      "id": "7",
+      "valor": "LIC."
+    },
+    {
+      "id": "8",
+      "valor": "M.T.I."
+    },
+    {
+      "id": "9",
+      "valor": "M.S.C."
+    },
+    {
+      "id": "10",
+      "valor": "M.S.I."
+    },
+    {
+      "id": "11",
+      "valor": "M.C."
+    },
+    {
+      "id": "12",
+      "valor": "M.T.E."
+    }
+  ],
+  "ccp_opciones": [
+    {
+      "id": "1",
+      "etiqueta": "Archivo"
+    },
+    {
+      "id": "2",
+      "etiqueta": "Minutario"
+    },
+    {
+      "id": "3",
+      "etiqueta": "Interesado"
+    },
+    {
+      "id": "4",
+      "etiqueta": "Expediente"
+    },
+    {
+      "id": "5",
+      "etiqueta": "Departamento de Planeación Programación y Presupuestación"
+    },
+    {
+      "id": "6",
+      "etiqueta": "Área Solicitante"
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
