@@ -2,7 +2,7 @@
 
 import AdminLayout from '../layout/AdminLayout.vue'
 
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 
 import { useRouter, useRoute } from 'vue-router'
 
@@ -13,10 +13,12 @@ import {
 
     getDocumentos, actualizarDocumento, retroalimentarBitacora, cancelarDocumento,
 
-    eliminarDocumento, getConfiguracion
+    eliminarDocumento, getConfiguracion, getDocumentoPorId
 } from '../services/api.js'
 import { useSesion } from '../composables/UseSesion.js'
-import { formatearFolio } from '@/utils/folio.js'
+
+import { formatearFolio, folioRealDe as _folioRealDe, textoVinculado as _textoVinculado } from '@/utils/folio.js'
+
 import CompartirAcciones from '@/components/CompartirAcciones.vue'
 
 const router = useRouter()
@@ -117,12 +119,19 @@ async function cargarTodo() {
 
 onMounted(cargarTodo)
 
+function folioRealDe(doc) {
+    return _folioRealDe(doc, prefijoFolio.value, anioFolio.value)
+}
+
+function textoVinculado(fila) {
+    return _textoVinculado(fila, documentos.value, prefijoFolio.value, anioFolio.value)
+}
+
 function faseDe(doc) {
     // Cancelado aplica a cualquier tipo — va primero para que un doc
     // normal cancelado no se quede atorado en fase 'normal'.
     if (doc.estado === 'cancelado') return doc.revisionJefeDepto === 'corregir' ? 'c' : 'x'
-
-    if (doc.tipo === 'comision-externa') {
+    if (doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) {
         if (doc.estado === 'pendiente_jefeDepto') {
             if (doc.revisionJefeDepto === 'corregir') return 'c'
 
@@ -173,7 +182,7 @@ const REVISIONES = {
 function estadoBadge(doc) {
     const fase = faseDe(doc)
     if (fase === 'pendiente_jefeDepto' && doc.esperandoCorreccionSecretaria) {
-        return { texto: 'Compartido\nesperando corrección', clase: 'bg-warning-subtle text-warning' }
+        return { texto: 'Esperando corrección', clase: 'bg-warning-subtle text-warning' }
     }
     if (fase !== 'normal') return STAGE_META[fase]
     // En fase 'normal' solo queda 'aprobado' o vacío — 'corregir' y
@@ -219,6 +228,12 @@ async function alternarCompartir(doc) {
         cambios.esperandoCorreccionSecretaria = false
     }
     await actualizarDocumento(doc.id, cambios)
+    // Si tiene pareja (memo combinado), se comparte/descomparte junto
+    // con el otro — si no, "Imprimir combinado" le daría acceso de
+    // hecho al que nunca se compartió formalmente.
+    if (doc.vinculadoCon) {
+        await actualizarDocumento(doc.vinculadoCon, cambios)
+    }
     await cargarTodo()
 }
 
@@ -245,7 +260,7 @@ async function pedirCorreccion(doc) {
         observaciones: '',
         observacionJefeDepto: '',
     }
-    if (doc.tipo === 'comision-externa' &&
+    if ((doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) &&
         (doc.estado === 'pendiente_subdirectora' || doc.estado === 'pendiente_director')) {
         cambios.estado = 'pendiente_jefeDepto'
     }
@@ -297,6 +312,8 @@ function rolDe(id) {
 const activeStage = ref(route.query.fase || null)
 
 const filtroTipo = ref('')
+
+
 
 const filtroEstadoTarea = ref('')
 
@@ -376,6 +393,12 @@ const filasVisibles = computed(() => {
             .map(d => ({ esTarea: false, ...d, fase: faseDe(d) }))
     }
 
+    if (filtroEstadoTarea.value === 'revisado_aprobado') {
+        return documentos.value
+            .filter(d => d.tipo !== 'comision-externa' && faseDe(d) === 'normal' && d.revisionJefeDepto === 'aprobado')
+            .map(d => ({ esTarea: false, ...d, fase: faseDe(d) }))
+    }
+
     let filas
 
     if (filtroEstadoTarea.value === 'pendiente' || filtroEstadoTarea.value === 'elaboracion') {
@@ -445,6 +468,21 @@ function verDocumento(doc) {
     router.push(`/bitacorasecapo/ver/${doc.id}`)
 }
 
+
+const comboImprimir = ref({ mostrando: false, htmlPrimero: '', htmlSegundo: '' })
+
+// trae el documento pareja ya guardado y arma la misma vista de 2
+// mitades para reimprimir ,no crea nada nuevo, usa lo que ya quedo
+// guardado la primera vez.
+async function imprimirCombinado(doc) {
+    const otro = await getDocumentoPorId(doc.vinculadoCon)
+    const [primero, segundo] = (doc.creadoEn || 0) <= (otro.creadoEn || 0) ? [doc, otro] : [otro, doc]
+    comboImprimir.value = { mostrando: true, htmlPrimero: primero.cuerpo, htmlSegundo: segundo.cuerpo }
+    await nextTick()
+    window.print()
+    comboImprimir.value.mostrando = false
+}
+
 // Para tareas que el admin se asignó a sí mismo (personasAsignables).
 function irACrearDocumento(entrada) {
     const rutaTipo = TIPO_A_RUTA[entrada.tipo]
@@ -469,11 +507,12 @@ function editarDocumento(doc) {
 }
 
 async function aprobarDocumento(doc) {
-    if (!confirm(`¿Aprobar ${doc.folio || doc.id}${doc.tipo === 'comision-externa' && doc.estado === 'pendiente_jefeDepto' ? ' y enviarlo a la Subdirectora' : ''}?`)) return
+    const esEstosCasos = doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)
+    if (!confirm(`¿Aprobar ${doc.folio || doc.id}${esEstosCasos && doc.estado === 'pendiente_jefeDepto' ? ' y enviarlo a la Subdirectora' : ''}?`)) return
 
     const cambios = { revisionJefeDepto: 'aprobado' }
 
-    if (doc.tipo === 'comision-externa' && doc.estado === 'pendiente_jefeDepto') {
+    if (esEstosCasos && doc.estado === 'pendiente_jefeDepto') {
         cambios.estado = 'pendiente_subdirectora'
     }
 
@@ -522,7 +561,10 @@ async function confirmarRetroalimentacion(doc) {
 
 async function cancelarDoc(doc) {
     if (doc.estado === 'autorizado') {
-        if (!confirm(`${doc.folio} ya fue autorizado por el Director. ¿Seguro que quieres cancelarlo?`)) return
+        const quienAutorizo = (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)
+            ? 'la Subdirectora'
+            : 'el Director'
+        if (!confirm(`${doc.folio} ya fue autorizado por ${quienAutorizo}. ¿Seguro que quieres cancelarlo?`)) return
 
         if (!confirm('Confirma una vez más: esto invalida un documento ya autorizado. ¿Continuar?')) return
     }
@@ -573,6 +615,28 @@ async function borrarTarea(entrada) {
 
     await cargarTodo()
 }
+
+
+
+// Solo para pruebas,borra TODO sin excepción (documentos y
+// tareas), sin importar quién los creó ni su estado. No confundir
+// con "Borrar todo lo mío" de Secretaria (esa solo borra lo d eella).
+async function eliminarTodo() {
+    const totalDocs = documentos.value.length
+    const totalTareas = entradas.value.length
+    if (totalDocs === 0 && totalTareas === 0) return
+    if (!confirm(`¿Eliminar TODOS los documentos (${totalDocs}) y tareas (${totalTareas})? Esta acción no se puede deshacer.`)) return
+    if (!confirm('Confirma una vez más: se borrará absolutamente todo, sin excepción. ¿Continuar?')) return
+    cargando.value = true
+    for (const doc of documentos.value) {
+        await eliminarDocumento(doc.id)
+    }
+    for (const tarea of entradas.value) {
+        await eliminarBitacora(tarea.id)
+    }
+    await cargarTodo()
+}
+
 
 function abrirModal() {
     const modalEl = document.getElementById('modalNuevaEntrada')
@@ -641,340 +705,367 @@ async function guardarTarea() {
 </script>
 
 <template>
+    <div :class="{ 'oculto-al-imprimir': comboImprimir.mostrando }">
+        <AdminLayout>
+            <div class="panel p-3 my-0">
 
-    <AdminLayout>
-        <div class="panel p-3 my-0">
+                <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
 
-            <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                    <button type="button" class="btn btn-primary btn-sm" @click="abrirModal">
 
-                <button type="button" class="btn btn-primary btn-sm" @click="abrirModal">
-
-                    <i class="bi bi-plus-square-fill"></i> Nuevo
-
-                </button>
-
-                <div class="d-flex flex-wrap gap-1">
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'tareas' ? 'btn-warning' : 'btn-outline-warning'"
-                        @click="toggleStage('tareas')">
-                        Pendientes <span class="badge bg-white text-dark ms-1">{{ conteos.tareas }}</span>
-                    </button>
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'pendiente_jefeDepto' ? 'btn-warning' : 'btn-outline-warning'"
-                        @click="toggleStage('pendiente_jefeDepto')">
-
-                        Pendiente revisión <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_jefeDepto
-                        }}</span>
+                        <i class="bi bi-plus-square-fill"></i> Nuevo
 
                     </button>
 
+                    <div class="d-flex flex-wrap gap-1">
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'tareas' ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="toggleStage('tareas')">
+                            Pendientes <span class="badge bg-white text-dark ms-1">{{ conteos.tareas }}</span>
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'pendiente_jefeDepto' ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="toggleStage('pendiente_jefeDepto')">
+
+                            Pendiente revisión <span class="badge bg-white text-dark ms-1">{{
+                                conteos.pendiente_jefeDepto
+                            }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'r' ? 'btn-danger' : 'btn-outline-danger'"
+                            @click="toggleStage('r')">
+
+                            ⚠ Rechazados <span class="badge bg-white text-dark ms-1">{{ conteos.r }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'pendiente_subdirectora' ? 'btn-info' : 'btn-outline-info'"
+                            @click="toggleStage('pendiente_subdirectora')">
+
+                            Con Subdirectora <span class="badge bg-white text-dark ms-1">{{
+                                conteos.pendiente_subdirectora
+                            }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'pendiente_director' ? 'btn-info' : 'btn-outline-info'"
+                            @click="toggleStage('pendiente_director')">
+
+                            Con Director <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_director
+                            }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'autorizado' ? 'btn-success' : 'btn-outline-success'"
+                            @click="toggleStage('autorizado')">
+
+                            Autorizado <span class="badge bg-white text-dark ms-1">{{ conteos.autorizado }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'c' ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="toggleStage('c')">
+
+                            ✎ En corrección <span class="badge bg-white text-dark ms-1">{{ conteos.c }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'x' ? 'btn-danger' : 'btn-outline-danger'"
+                            @click="toggleStage('x')">
+
+                            ✕ Cancelados <span class="badge bg-white text-dark ms-1">{{ conteos.x }}</span>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+
+                    <input type="text" class="form-control form-control-sm" style="max-width:260px;"
+                        placeholder="Buscar por número de oficio o nombre…" v-model="busqueda">
+
+                    <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroTipo">
+
+                        <option value="">Tipo de documento: todos</option>
+
+                        <option v-for="t in TIPOS_DOCUMENTO" :key="t.valor" :value="t.valor">{{ t.etiqueta }}</option>
+
+                    </select>
+
+                    <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroEstadoTarea">
+
+                        <option value="">Estado de la tarea: todos</option>
+
+                        <option value="pendiente">Pendiente</option>
+
+                        <option value="elaboracion">En elaboración</option>
+
+                        <option value="finalizado">Finalizado</option>
+
+                        <option value="revisado_aprobado">Revisado y aprobado</option>
+
+
+
+                    </select>
+
+                    <div class="d-flex align-items-center gap-1">
+
+                        <label class="small text-muted mb-0">Desde</label>
+
+                        <input type="date" class="form-control form-control-sm" v-model="fechaDesde">
+
+                        <label class="small text-muted mb-0">Hasta</label>
+
+                        <input type="date" class="form-control form-control-sm" v-model="fechaHasta">
+
+                    </div>
+
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+
+                    <span class="small text-muted fw-semibold text-uppercase">Creado por:</span>
+
                     <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'r' ? 'btn-danger' : 'btn-outline-danger'" @click="toggleStage('r')">
+                        :class="creadorFiltro === 'todos' ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="creadorFiltro = 'todos'">Todos</button>
 
-                        ⚠ Rechazados <span class="badge bg-white text-dark ms-1">{{ conteos.r }}</span>
+                    <button v-for="r in ROLES_CREADOR" :key="r.valor" type="button" class="btn btn-sm"
+                        :class="creadorFiltro === r.valor ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="creadorFiltro = r.valor">{{ r.etiqueta }}</button>
 
-                    </button>
+                        <!-- borrar todo de admin y sec/apo para pruebas,luego se quitara   -->
 
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'pendiente_subdirectora' ? 'btn-info' : 'btn-outline-info'"
-                        @click="toggleStage('pendiente_subdirectora')">
-
-                        Con Subdirectora <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_subdirectora
-                        }}</span>
-
-                    </button>
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'pendiente_director' ? 'btn-info' : 'btn-outline-info'"
-                        @click="toggleStage('pendiente_director')">
-
-                        Con Director <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_director }}</span>
-
-                    </button>
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'autorizado' ? 'btn-success' : 'btn-outline-success'"
-                        @click="toggleStage('autorizado')">
-
-                        Autorizado <span class="badge bg-white text-dark ms-1">{{ conteos.autorizado }}</span>
-
-                    </button>
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'c' ? 'btn-warning' : 'btn-outline-warning'" @click="toggleStage('c')">
-
-                        ✎ En corrección <span class="badge bg-white text-dark ms-1">{{ conteos.c }}</span>
-
-                    </button>
-
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'x' ? 'btn-danger' : 'btn-outline-danger'" @click="toggleStage('x')">
-
-                        ✕ Cancelados <span class="badge bg-white text-dark ms-1">{{ conteos.x }}</span>
-
+                    <button type="button" class="btn btn-outline-danger btn-sm ms-auto" @click="eliminarTodo">
+                        <i class="bi bi-trash3"></i> Borrar todo
                     </button>
 
                 </div>
 
             </div>
 
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+            <div v-if="cargando" class="text-center py-5"><span class="spinner-border"></span></div>
 
-                <input type="text" class="form-control form-control-sm" style="max-width:260px;"
-                    placeholder="Buscar por número de oficio o nombre…" v-model="busqueda">
+            <section v-else class="panel">
 
-                <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroTipo">
+                <div class="table-responsive">
 
-                    <option value="">Tipo de documento: todos</option>
+                    <table class="table align-middle mb-0">
 
-                    <option v-for="t in TIPOS_DOCUMENTO" :key="t.valor" :value="t.valor">{{ t.etiqueta }}</option>
+                        <thead>
 
-                </select>
+                            <tr>
 
-                <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroEstadoTarea">
+                                <th>Folio</th>
 
-                    <option value="">Estado de la tarea: todos</option>
+                                <th>Fecha</th>
 
-                    <option value="pendiente">Pendiente</option>
+                                <th>Tipo</th>
 
-                    <option value="elaboracion">En elaboración</option>
+                                <th>Nombre</th>
 
-                    <option value="finalizado">Finalizado</option>
+                                <th>Descripción</th>
 
-                </select>
+                                <th>Estado</th>
 
-                <div class="d-flex align-items-center gap-1">
+                                <th>Responsable</th>
 
-                    <label class="small text-muted mb-0">Desde</label>
+                                <th>Acciones</th>
 
-                    <input type="date" class="form-control form-control-sm" v-model="fechaDesde">
+                            </tr>
 
-                    <label class="small text-muted mb-0">Hasta</label>
+                        </thead>
 
-                    <input type="date" class="form-control form-control-sm" v-model="fechaHasta">
+                        <tbody>
 
-                </div>
+                            <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
 
-            </div>
+                                <td class="text-muted small">—</td>
 
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                                <td><span class="text-muted small">{{ fila.fecha }}</span>
 
-                <span class="small text-muted fw-semibold text-uppercase">Creado por:</span>
+                                    <br><span class="text-muted small">caduca {{ fila.fechaCaducidad }}</span>
+                                </td>
 
-                <button type="button" class="btn btn-sm"
-                    :class="creadorFiltro === 'todos' ? 'btn-secondary' : 'btn-outline-secondary'"
-                    @click="creadorFiltro = 'todos'">Todos</button>
+                                <td>{{ fila.tipo }}</td>
 
-                <button v-for="r in ROLES_CREADOR" :key="r.valor" type="button" class="btn btn-sm"
-                    :class="creadorFiltro === r.valor ? 'btn-secondary' : 'btn-outline-secondary'"
-                    @click="creadorFiltro = r.valor">{{ r.etiqueta }}</button>
+                                <td class="text-muted">—</td>
 
-            </div>
+                                <td>{{ fila.descripcion }}</td>
 
-        </div>
+                                <td>
 
-        <div v-if="cargando" class="text-center py-5"><span class="spinner-border"></span></div>
+                                    <span v-if="fila.estado === 'pendiente'"
+                                        class="badge bg-warning-subtle text-warning">Pendiente</span>
 
-        <section v-else class="panel">
+                                    <span v-else-if="fila.estado === 'elaboracion'"
+                                        class="badge bg-primary-subtle text-primary">En elaboración</span>
 
-            <div class="table-responsive">
-
-                <table class="table align-middle mb-0">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>Folio</th>
-
-                            <th>Fecha</th>
-
-                            <th>Tipo</th>
-
-                            <th>Nombre</th>
-
-                            <th>Descripción</th>
-
-                            <th>Estado</th>
-
-                            <th>Responsable</th>
-
-                            <th>Acciones</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-
-                        <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
-
-                            <td class="text-muted small">—</td>
-
-                            <td><span class="text-muted small">{{ fila.fecha }}</span>
-
-                                <br><span class="text-muted small">caduca {{ fila.fechaCaducidad }}</span>
-                            </td>
-
-                            <td>{{ fila.tipo }}</td>
-
-                            <td class="text-muted">—</td>
-
-                            <td>{{ fila.descripcion }}</td>
-
-                            <td>
-
-                                <span v-if="fila.estado === 'pendiente'"
-                                    class="badge bg-warning-subtle text-warning">Pendiente</span>
-
-                                <span v-else-if="fila.estado === 'elaboracion'"
-                                    class="badge bg-primary-subtle text-primary">En elaboración</span>
-
-                                <span v-else class="badge bg-secondary-subtle text-secondary">{{ fila.estado }}</span>
-
-                            </td>
-
-                            <td>{{ fila.asignadoA ? nombreUsuario(fila.asignadoA) : '—' }}</td>
-
-                            <td>
-
-                                <div class="d-flex gap-1">
-
-                                    <button
-                                        v-if="fila.estado !== 'eliminado' && String(fila.asignadoA) === String(usuarioActivo?.id)"
-                                        class="btn btn-sm btn-outline-success" title="Crear documento"
-                                        @click="irACrearDocumento(fila)">
-
-                                        <i class="bi bi-file-earmark-plus"></i>
-
-                                    </button>
-
-                                    <button v-if="usuarioActivo?.rol === 'admin' && fila.estado !== 'eliminado'"
-                                        class="btn btn-sm btn-outline-secondary" title="Editar tarea"
-                                        @click="editarTarea(fila)"><i class="bi bi-pencil"></i></button>
-
-                                    <button v-if="usuarioActivo?.rol === 'admin'" class="btn btn-sm btn-outline-danger"
-                                        title="Borrar" @click="borrarTarea(fila)"><i class="bi bi-trash"></i></button>
-
-                                </div>
-
-                            </td>
-
-                        </tr>
-
-                        <tr v-for="fila in filasVisibles.filter(f => !f.esTarea)" :key="'d' + fila.id">
-
-                            <td><span class="folio-text">{{ fila.folio }}</span><br><span class="text-muted small">{{
-                                fila.fecha }}</span></td>
-
-                            <td>
-
-                                <template v-if="fechaTareaDe(fila)">
-
-                                    <span class="text-muted small">{{ fechaTareaDe(fila).fecha }}</span>
-
-                                    <br><span class="text-muted small">caduca {{ fechaTareaDe(fila).fechaCaducidad
+                                    <span v-else class="badge bg-secondary-subtle text-secondary">{{ fila.estado
                                     }}</span>
 
-                                </template>
+                                </td>
 
-                                <span v-else class="text-muted small">—</span>
+                                <td>{{ fila.asignadoA ? nombreUsuario(fila.asignadoA) : '—' }}</td>
 
-                            </td>
-
-                            <td>{{ fila.tipo === 'comision-externa' ? 'Comisión Externa' : etiquetaTipo(fila.tipo) }}</td>
-
-                            <td>{{ personaRelevante(fila) }}</td>
-
-                            <td class="text-muted small">{{ descripcionDe(fila) }}</td>
-
-                            <td>
-
-                                <span v-if="estadoBadge(fila)" class="badge" :class="estadoBadge(fila).clase"
-                                    style="white-space: pre-line;">
-
-                                    {{ estadoBadge(fila).texto }}
-
-                                </span>
-
-                                <span v-else class="text-muted small">—</span>
-
-                                <div v-if="fila.fase === 'r'" class="small text-danger mt-1">
-
-                                    <strong>{{ fila.rechazadoPor }}</strong> no lo autorizó: {{ fila.observaciones }}
-
-                                </div>
-
-                                <div v-if="fila.fase === 'x' && fila.motivoCancelacion" class="small text-muted mt-1">
-
-                                    Motivo: {{ fila.motivoCancelacion }}
-
-                                </div>
-
-                            </td>
-
-                            <td>{{ fila.creadoPor ? nombreUsuario(fila.creadoPor) : '—' }}</td>
-
-                            <td>
-
-                                <div v-if="retroalimentandoId === fila.id" style="min-width:220px;">
-
-                                    <textarea class="form-control form-control-sm mb-1" rows="2"
-                                        v-model="textoObservacion" placeholder="¿Qué hay que corregir?"></textarea>
+                                <td>
 
                                     <div class="d-flex gap-1">
 
-                                        <button class="btn btn-sm btn-outline-secondary flex-fill"
-                                            @click="cerrarRetroalimentacion">Cerrar</button>
+                                        <button
+                                            v-if="fila.estado !== 'eliminado' && String(fila.asignadoA) === String(usuarioActivo?.id)"
+                                            class="btn btn-sm btn-outline-success" title="Crear documento"
+                                            @click="irACrearDocumento(fila)">
 
-                                        <button class="btn btn-sm btn-warning flex-fill"
-                                            @click="confirmarRetroalimentacion(fila)">Enviar</button>
+                                            <i class="bi bi-file-earmark-plus"></i>
+
+                                        </button>
+
+                                        <button v-if="usuarioActivo?.rol === 'admin' && fila.estado !== 'eliminado'"
+                                            class="btn btn-sm btn-outline-secondary" title="Editar tarea"
+                                            @click="editarTarea(fila)"><i class="bi bi-pencil"></i></button>
+
+                                        <button v-if="usuarioActivo?.rol === 'admin'"
+                                            class="btn btn-sm btn-outline-danger" title="Borrar"
+                                            @click="borrarTarea(fila)"><i class="bi bi-trash"></i></button>
 
                                     </div>
 
-                                </div>
+                                </td>
 
-                                <div v-else class="d-flex flex-wrap gap-1">
+                            </tr>
 
-                                    <button class="btn btn-sm btn-outline-secondary" title="Ver"
-                                        @click="verDocumento(fila)"><i class="bi bi-eye"></i></button>
+                            <tr v-for="fila in filasVisibles.filter(f => !f.esTarea)" :key="'d' + fila.id">
 
-                                    <template v-if="fila.fase === 'pendiente_jefeDepto'">
+                                <td><span class="folio-text">{{ folioRealDe(fila) || fila.folio }}</span><br><span
+                                        class="text-muted small">{{
+                                            fila.fecha }}</span>
+                                    <template v-if="fila.vinculadoCon"><br><span class="text-info small">Vinculado con
+                                            {{ textoVinculado(fila) }}</span></template>
+                                </td>
 
-                                        <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                            @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+                                <td>
 
-                                        <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                            :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
-                                            @corregir="pedirCorreccion(fila)" />
+                                    <template v-if="fechaTareaDe(fila)">
 
-                                        <!-- Mientras espera la corrección de Secretaria, no hay
-                                             nada que Aprobar/Corregir todavía — se avisa en la
-                                             columna Estado (ver estadoBadge), aquí no hace falta
-                                             repetirlo. -->
-                                        <template v-if="!fila.esperandoCorreccionSecretaria">
-                                            <button v-if="creadoPorSecretaria(fila) || fueCompartido(fila)"
-                                                class="btn btn-sm btn-outline-success" title="Aprobar"
-                                                @click="aprobarDocumento(fila)"><i
-                                                    class="bi bi-check-lg"></i></button>
+                                        <span class="text-muted small">{{ fechaTareaDe(fila).fecha }}</span>
 
-                                            <!-- Ya compartido → "Pedir corrección" (arriba, mismo
-                                                 ícono) hace exactamente esto mismo. Repetirlo aquí
-                                                 sería el mismo botón dos veces con nombre distinto. -->
-                                            <button v-if="!fila.visibleParaSecretaria"
-                                                class="btn btn-sm btn-outline-warning" title="Corregir"
-                                                @click="abrirRetroalimentacion(fila)"><i
-                                                    class="bi bi-chat-left-text"></i></button>
-                                        </template>
-
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+                                        <br><span class="text-muted small">caduca {{ fechaTareaDe(fila).fechaCaducidad
+                                        }}</span>
 
                                     </template>
 
-                                    <!-- Rechazado: se corrige (Editar) y se reenvía solo, o se
+                                    <span v-else class="text-muted small">—</span>
+
+                                </td>
+
+                                <td>{{ fila.tipo === 'comision-externa' ? 'Comisión Externa' : etiquetaTipo(fila.tipo)
+                                }}
+                                </td>
+
+                                <td>{{ personaRelevante(fila) }}</td>
+
+                                <td class="text-muted small">{{ descripcionDe(fila) }}</td>
+
+                                <td>
+
+                                    <span v-if="estadoBadge(fila)" class="badge" :class="estadoBadge(fila).clase"
+                                        style="white-space: pre-line;">
+
+                                        {{ estadoBadge(fila).texto }}
+
+                                    </span>
+
+                                    <span v-else class="text-muted small">—</span>
+
+                                    <div v-if="fila.fase === 'r'" class="small text-danger mt-1">
+
+                                        <strong>{{ fila.rechazadoPor }}</strong> no lo autorizó: {{ fila.observaciones
+                                        }}
+
+                                    </div>
+
+                                    <div v-if="fila.fase === 'x' && fila.motivoCancelacion"
+                                        class="small text-muted mt-1">
+
+                                        Motivo: {{ fila.motivoCancelacion }}
+
+                                    </div>
+
+                                </td>
+
+                                <td>{{ fila.creadoPor ? nombreUsuario(fila.creadoPor) : '—' }}</td>
+
+                                <td>
+
+                                    <div v-if="retroalimentandoId === fila.id" style="min-width:220px;">
+
+                                        <textarea class="form-control form-control-sm mb-1" rows="2"
+                                            v-model="textoObservacion" placeholder="¿Qué hay que corregir?"></textarea>
+
+                                        <div class="d-flex gap-1">
+
+                                            <button class="btn btn-sm btn-outline-secondary flex-fill"
+                                                @click="cerrarRetroalimentacion">Cerrar</button>
+
+                                            <button class="btn btn-sm btn-warning flex-fill"
+                                                @click="confirmarRetroalimentacion(fila)">Enviar</button>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div v-else class="d-flex flex-wrap gap-1">
+
+                                        <button class="btn btn-sm btn-outline-secondary" title="Ver"
+                                            @click="verDocumento(fila)"><i class="bi bi-eye"></i></button>
+
+                                        <template v-if="fila.fase === 'pendiente_jefeDepto'">
+
+                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+
+                                            <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
+                                                :puede-corregir="puedeCorregir(fila)"
+                                                @compartir="alternarCompartir(fila)"
+                                                @corregir="pedirCorreccion(fila)" />
+
+                                            <!-- Mientras espera la corrección de Secretaria, no hay
+                                             nada que Aprobar/Corregir todavía — se avisa en la
+                                             columna Estado (ver estadoBadge), aquí no hace falta
+                                             repetirlo. -->
+                                            <template v-if="!fila.esperandoCorreccionSecretaria">
+                                                <button v-if="creadoPorSecretaria(fila) || fueCompartido(fila)"
+                                                    class="btn btn-sm btn-outline-success" title="Aprobar"
+                                                    @click="aprobarDocumento(fila)"><i
+                                                        class="bi bi-check-lg"></i></button>
+
+                                                <!-- Ya compartido → "Pedir corrección" (arriba, mismo
+                                                 ícono) hace exactamente esto mismo. Repetirlo aquí
+                                                 sería el mismo botón dos veces con nombre distinto. -->
+                                                <button v-if="!fila.visibleParaSecretaria"
+                                                    class="btn btn-sm btn-outline-warning" title="Corregir"
+                                                    @click="abrirRetroalimentacion(fila)"><i
+                                                        class="bi bi-chat-left-text"></i></button>
+                                            </template>
+
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+
+                                        </template>
+
+                                        <!-- Rechazado: se corrige (Editar) y se reenvía solo, o se
 
                                          regresa a la Secretaria con nota, o se cancela — a
 
@@ -984,76 +1075,83 @@ async function guardarTarea() {
 
                                          único camino a borrar sigue siendo Cancelados). -->
 
-                                    <template v-else-if="fila.fase === 'r'">
+                                        <template v-else-if="fila.fase === 'r'">
 
-                                        <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                            @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
-
-                                        <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                            :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
-                                            @corregir="pedirCorreccion(fila)" />
-
-                                        <button v-if="!esTareaPropia(fila)" class="btn btn-sm btn-outline-warning"
-                                            title="Regresar a la Secretaria" @click="abrirRetroalimentacion(fila)"><i
-                                                class="bi bi-arrow-return-left"></i></button>
-
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
-
-                                    </template>
-
-                                    <template
-                                        v-else-if="fila.fase === 'pendiente_subdirectora' || fila.fase === 'pendiente_director'">
-
-                                        <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                            @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
-
-                                        <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                            :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
-                                            @corregir="pedirCorreccion(fila)" />
-
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
-
-                                    </template>
-
-                                    <template v-else-if="fila.fase === 'autorizado'">
-
-                                        <button class="btn btn-sm btn-outline-primary" disabled
-                                            title="Disponible cuando esté conectada la firma digital"><i
-                                                class="bi bi-download"></i></button>
-
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
-
-                                    </template>
-
-                                    <template v-else-if="fila.fase === 'x'">
-
-                                        <template v-if="fila.tipo === 'comision-externa'">
-
-                                            <button class="btn btn-sm btn-outline-secondary"
-                                                title="Editar y reenviar yo" @click="editarDocumento(fila)"><i
-                                                    class="bi bi-pencil"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
                                             <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                                :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
+                                                :puede-corregir="puedeCorregir(fila)"
+                                                @compartir="alternarCompartir(fila)"
                                                 @corregir="pedirCorreccion(fila)" />
 
-                                            <button v-if="bitacoraPorDocumentoId[fila.id] && !esTareaPropia(fila)"
-                                                class="btn btn-sm btn-outline-warning" title="Regresar a la Secretaria"
+                                            <button v-if="!esTareaPropia(fila)" class="btn btn-sm btn-outline-warning"
+                                                title="Regresar a la Secretaria"
                                                 @click="abrirRetroalimentacion(fila)"><i
                                                     class="bi bi-arrow-return-left"></i></button>
 
-                                            <button class="btn btn-sm btn-outline-danger" title="Borrar"
-                                                @click="borrarComisionCancelada(fila)"><i
-                                                    class="bi bi-trash"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
 
                                         </template>
 
-                                        <template v-else>
+                                        <template
+                                            v-else-if="fila.fase === 'pendiente_subdirectora' || fila.fase === 'pendiente_director'">
 
-                                            <!-- Un documento normal cancelado ya cerró su ciclo — no
+                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+
+                                            <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
+                                                :puede-corregir="puedeCorregir(fila)"
+                                                @compartir="alternarCompartir(fila)"
+                                                @corregir="pedirCorreccion(fila)" />
+
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+
+                                        </template>
+
+                                        <template v-else-if="fila.fase === 'autorizado'">
+
+                                            <button class="btn btn-sm btn-outline-primary" disabled
+                                                title="Disponible cuando esté conectada la firma digital"><i
+                                                    class="bi bi-download"></i></button>
+
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+
+                                        </template>
+
+                                        <template v-else-if="fila.fase === 'x'">
+
+                                            <template
+                                                v-if="fila.tipo === 'comision-externa' || (fila.tipo === 'comision-interna' && fila.campos?.para_jefe_depto)">
+
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                    title="Editar y reenviar yo" @click="editarDocumento(fila)"><i
+                                                        class="bi bi-pencil"></i></button>
+
+                                                <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
+                                                    :puede-corregir="puedeCorregir(fila)"
+                                                    @compartir="alternarCompartir(fila)"
+                                                    @corregir="pedirCorreccion(fila)" />
+
+                                                <button
+                                                    v-if="creadoPorSecretaria(fila) && (!bitacoraPorDocumentoId[fila.id] || !esTareaPropia(fila))"
+                                                    class="btn btn-sm btn-outline-warning"
+                                                    title="Regresar a la Secretaria"
+                                                    @click="abrirRetroalimentacion(fila)"><i
+                                                        class="bi bi-arrow-return-left"></i></button>
+
+                                                <button class="btn btn-sm btn-outline-danger" title="Borrar"
+                                                    @click="borrarComisionCancelada(fila)"><i
+                                                        class="bi bi-trash"></i></button>
+
+                                            </template>
+
+                                            <template v-else>
+
+                                                <!-- Un documento normal cancelado ya cerró su ciclo — no
 
                                                  tiene sentido "regresarlo a retro", nadie más lo va a
 
@@ -1061,18 +1159,23 @@ async function guardarTarea() {
 
                                                  útil por si se retoma más adelante) o borrar. -->
 
-                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                    @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
-                                            <button class="btn btn-sm btn-outline-danger" title="Borrar"
-                                                @click="borrarDocumentoNormal(fila)"><i
-                                                    class="bi bi-trash"></i></button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Borrar"
+                                                    @click="borrarDocumentoNormal(fila)"><i
+                                                        class="bi bi-trash"></i></button>
+
+                                                <button v-if="fila.vinculadoCon" class="btn btn-sm btn-outline-info"
+                                                    title="Imprimir combinado (con su pareja)"
+                                                    @click="imprimirCombinado(fila)"><i
+                                                        class="bi bi-files"></i></button>
+
+                                            </template>
 
                                         </template>
 
-                                    </template>
-
-                                    <!-- Admin puede intervenir aquí sin importar de quién es la
+                                        <!-- Admin puede intervenir aquí sin importar de quién es la
 
                                          tarea (ella podría no estar disponible) — mismo criterio
 
@@ -1080,170 +1183,181 @@ async function guardarTarea() {
 
                                          restringe por dueño de la tarea. -->
 
-                                    <template v-else-if="fila.fase === 'c'">
+                                        <template v-else-if="fila.fase === 'c'">
 
-                                        <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                            @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
-                                        <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                            :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
-                                            @corregir="pedirCorreccion(fila)" />
+                                            <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
+                                                :puede-corregir="puedeCorregir(fila)"
+                                                @compartir="alternarCompartir(fila)"
+                                                @corregir="pedirCorreccion(fila)" />
 
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
 
-                                    </template>
+                                        </template>
 
-                                    <template v-else>
+                                        <template v-else>
 
-                                        <button class="btn btn-sm btn-outline-secondary" title="Editar"
-                                            @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
+                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
-                                        <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
-                                            :puede-corregir="puedeCorregir(fila)" @compartir="alternarCompartir(fila)"
-                                            @corregir="pedirCorreccion(fila)" />
+                                            <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
+                                                :puede-corregir="puedeCorregir(fila)"
+                                                @compartir="alternarCompartir(fila)"
+                                                @corregir="pedirCorreccion(fila)" />
 
-                                        <button class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                            @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                                @click="cancelarDoc(fila)"><i class="bi bi-slash-circle"></i></button>
 
-                                        <button class="btn btn-sm btn-outline-danger" title="Borrar"
-                                            @click="borrarDocumentoNormal(fila)"><i class="bi bi-trash"></i></button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Borrar"
+                                                @click="borrarDocumentoNormal(fila)"><i
+                                                    class="bi bi-trash"></i></button>
 
-                                    </template>
+                                            <button v-if="fila.vinculadoCon" class="btn btn-sm btn-outline-info"
+                                                title="Imprimir combinado (con su pareja)"
+                                                @click="imprimirCombinado(fila)"><i class="bi bi-files"></i></button>
+
+                                        </template>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                            <tr v-if="filasVisibles.length === 0">
+
+                                <td colspan="8" class="text-center text-muted py-4">
+
+                                    <i class="bi bi-inbox" style="font-size:2rem;"></i>
+
+                                    <p class="mt-2 mb-0">Nada por aquí con estos filtros.</p>
+
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+            <div class="modal fade" id="modalNuevaEntrada" tabindex="-1" aria-hidden="true">
+
+                <div class="modal-dialog modal-lg">
+
+                    <div class="modal-content">
+
+                        <div class="modal-header">
+
+                            <h5 class="modal-title">
+
+                                <i class="bi bi-plus-square-fill" v-if="!editandoId"></i>
+
+                                <i class="bi bi-pencil" v-else></i>
+
+                                {{ editandoId ? 'Editar tarea' : 'Nueva entrada' }}
+
+                            </h5>
+
+                            <button type="button" class="btn-close" @click="cerrarModal" aria-label="Close"></button>
+
+                        </div>
+
+                        <div class="modal-body">
+
+                            <div class="row g-3 mb-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">Fecha <span class="text-danger">*</span></label>
+
+                                    <input type="date" class="form-control" v-model="nuevaEntrada.fecha" required>
 
                                 </div>
 
-                            </td>
+                                <div class="col-md-6">
 
-                        </tr>
+                                    <label class="form-label">Fecha de caducidad</label>
 
-                        <tr v-if="filasVisibles.length === 0">
+                                    <input type="date" class="form-control" v-model="nuevaEntrada.fechaCaducidad">
 
-                            <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="form-text">Opcional(fecha límite para completar el documento)</div>
 
-                                <i class="bi bi-inbox" style="font-size:2rem;"></i>
-
-                                <p class="mt-2 mb-0">Nada por aquí con estos filtros.</p>
-
-                            </td>
-
-                        </tr>
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </section>
-
-        <div class="modal fade" id="modalNuevaEntrada" tabindex="-1" aria-hidden="true">
-
-            <div class="modal-dialog modal-lg">
-
-                <div class="modal-content">
-
-                    <div class="modal-header">
-
-                        <h5 class="modal-title">
-
-                            <i class="bi bi-plus-square-fill" v-if="!editandoId"></i>
-
-                            <i class="bi bi-pencil" v-else></i>
-
-                            {{ editandoId ? 'Editar tarea' : 'Nueva entrada' }}
-
-                        </h5>
-
-                        <button type="button" class="btn-close" @click="cerrarModal" aria-label="Close"></button>
-
-                    </div>
-
-                    <div class="modal-body">
-
-                        <div class="row g-3 mb-3">
-
-                            <div class="col-md-6">
-
-                                <label class="form-label">Fecha <span class="text-danger">*</span></label>
-
-                                <input type="date" class="form-control" v-model="nuevaEntrada.fecha" required>
+                                </div>
 
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="mb-3">
 
-                                <label class="form-label">Fecha de caducidad</label>
+                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
 
-                                <input type="date" class="form-control" v-model="nuevaEntrada.fechaCaducidad">
+                                <textarea class="form-control" rows="3" v-model="nuevaEntrada.descripcion"
+                                    required></textarea>
 
-                                <div class="form-text">Opcional(fecha límite para completar el documento)</div>
+
+
+                            </div>
+
+                            <div class="row g-3">
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">Asignar a</label>
+
+                                    <select class="form-select" v-model="nuevaEntrada.asignadoA">
+
+                                        <option value="">Sin asignar</option>
+
+                                        <option v-for="p in personasAsignables" :key="p.id" :value="p.id">{{ p.nombre }}
+                                        </option>
+
+                                    </select>
+
+                                </div>
+
+                                <div class="col-md-6">
+
+                                    <label class="form-label">Tipo de documento <span
+                                            class="text-danger">*</span></label>
+
+                                    <select class="form-select" v-model="nuevaEntrada.tipo" required>
+
+                                        <option value="">Selecciona un tipo</option>
+
+                                        <option v-for="tipo in Object.keys(TIPO_A_RUTA)" :key="tipo" :value="tipo">{{
+                                            tipo
+                                        }}
+                                        </option>
+
+                                    </select>
+
+                                </div>
 
                             </div>
 
                         </div>
 
-                        <div class="mb-3">
+                        <div class="modal-footer">
 
-                            <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                            <button type="button" class="btn btn-secondary" @click="cerrarModal">
 
-                            <textarea class="form-control" rows="3"
-                                v-model="nuevaEntrada.descripcion" required></textarea>
+                                <i class="bi bi-x-circle"></i> Cancelar
 
-                           
+                            </button>
 
-                        </div>
+                            <button type="button" class="btn btn-primary" @click="guardarTarea">
 
-                        <div class="row g-3">
+                                <i class="bi bi-check-lg"></i> {{ editandoId ? 'Guardar cambios' : 'Guardar' }}
 
-                            <div class="col-md-6">
-
-                                <label class="form-label">Asignar a</label>
-
-                                <select class="form-select" v-model="nuevaEntrada.asignadoA">
-
-                                    <option value="">Sin asignar</option>
-
-                                    <option v-for="p in personasAsignables" :key="p.id" :value="p.id">{{ p.nombre }}
-                                    </option>
-
-                                </select>
-
-                            </div>
-
-                            <div class="col-md-6">
-
-                                <label class="form-label">Tipo de documento <span class="text-danger">*</span></label>
-
-                                <select class="form-select" v-model="nuevaEntrada.tipo" required>
-
-                                    <option value="">Selecciona un tipo</option>
-
-                                    <option v-for="tipo in Object.keys(TIPO_A_RUTA)" :key="tipo" :value="tipo">{{ tipo
-                                    }}
-                                    </option>
-
-                                </select>
-
-                            </div>
+                            </button>
 
                         </div>
-
-                    </div>
-
-                    <div class="modal-footer">
-
-                        <button type="button" class="btn btn-secondary" @click="cerrarModal">
-
-                            <i class="bi bi-x-circle"></i> Cancelar
-
-                        </button>
-
-                        <button type="button" class="btn btn-primary" @click="guardarTarea">
-
-                            <i class="bi bi-check-lg"></i> {{ editandoId ? 'Guardar cambios' : 'Guardar' }}
-
-                        </button>
 
                     </div>
 
@@ -1251,9 +1365,18 @@ async function guardarTarea() {
 
             </div>
 
-        </div>
 
-    </AdminLayout>
+        </AdminLayout>
+
+    </div>
+
+    <div v-if="comboImprimir.mostrando" class="combo-wrapper">
+        <div class="bg-white border rounded documento-carta" v-html="comboImprimir.htmlPrimero"></div>
+        <div class="bg-white border rounded documento-carta combo-segunda-incidencia"
+            v-html="comboImprimir.htmlSegundo">
+        </div>
+    </div>
+
 
 </template>
 

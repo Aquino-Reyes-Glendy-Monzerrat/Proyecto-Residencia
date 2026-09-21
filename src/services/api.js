@@ -388,3 +388,21 @@ export async function reiniciarContadorFolio(categoria) {
     await actualizarConfiguracion(config)
     return config.folio
 }
+
+
+//para las fuentes
+export async function getFuentes() {
+    const res = await axios.get(`${BASE_URL}/fuentes`)
+    return res.data
+}
+export async function agregarFuente(nuevo) {
+    const res = await axios.post(`${BASE_URL}/fuentes`, nuevo)
+    return res.data
+}
+export async function actualizarFuente(id, cambios) {
+    const res = await axios.patch(`${BASE_URL}/fuentes/${id}`, cambios)
+    return res.data
+}
+export async function eliminarFuente(id) {
+    await axios.delete(`${BASE_URL}/fuentes/${id}`)
+}

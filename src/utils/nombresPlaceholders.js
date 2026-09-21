@@ -1,0 +1,30 @@
+// Nombre bonito (en español) que se muestra en cada pastilla del
+// editor de plantillas — la clave técnica sigue siendo la que ya usa
+// todo el sistema para sustituir texto, esto es solo lo que se ve.
+export const NOMBRES_CAMPOS = {
+    articulo_c: 'Artículo (el/la)',
+    asignado_texto: 'Docente asignado',
+    carrera: 'Carrera',
+    ciudad_destino: 'Ciudad de destino',
+    comisionado_texto: 'Comisionado(a)',
+    detalle_egresado: 'Detalle del egresado',
+    dias_texto: 'Fecha(s)',
+    fecha_fin_texto: 'Fecha de fin',
+    fecha_inicio_texto: 'Fecha de inicio',
+    grupo_o_grupos: 'Grupo(s)',
+    hora_entrada: 'Hora de entrada',
+    hora_salida: 'Hora de salida',
+    lista_grupos: 'Lista de grupos',
+    lugar_evento: 'Lugar del evento',
+    lugar_texto: 'Instalaciones / lugar',
+    motivo: 'Motivo',
+    nombre_estudiante: 'Nombre del estudiante',
+    nombre_programa: 'Nombre del programa',
+    nombre_proyecto: 'Nombre del proyecto',
+    nombre_solicitante: 'Nombre del solicitante',
+    numero_control: 'Número de control',
+    periodo_texto: 'Periodo',
+    rango_fechas: 'Rango de fechas',
+    texto_libre: 'Texto libre',
+    tipo_actividad: 'Actividad',
+}

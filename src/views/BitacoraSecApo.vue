@@ -1,17 +1,23 @@
 <script setup>
 import AdminLayout from '@/layout/AdminLayout.vue';
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Modal } from 'bootstrap'
 import {
     getDocumentos, getUsuarios, eliminarDocumento, getConfiguracion,
     getBitacora, agregarBitacora, actualizarBitacora, eliminarBitacora,
-    actualizarDocumento, cancelarDocumento
+    actualizarDocumento, cancelarDocumento, getDocumentoPorId
 } from '../services/api.js'
 import { useSesion } from '../composables/UseSesion.js'
 
+import { formatearFolio, folioRealDe as _folioRealDe, textoVinculado as _textoVinculado } from '@/utils/folio.js'
+
 const router = useRouter()
 const { usuarioActivo: usuario } = useSesion()
+
+
+const prefijoFolio = ref('P')
+const anioFolio = ref(new Date().getFullYear())
 
 const documentos = ref([])
 const entradas = ref([])
@@ -24,6 +30,7 @@ const bitacoraPorDocumentoId = ref({})
 const filtroFechaInicio = ref('')
 const filtroFechaFin = ref('')
 const filtroTipo = ref('')
+const busqueda = ref('')
 // Fase activa y quién lo creó, combinados con fecha/tipo.
 const activeStage = ref(null)
 const creadorFiltro = ref('todos') // 'todos' | 'mi' | 'admin'
@@ -72,6 +79,8 @@ async function cargarTodo() {
     )
 
     const config = await getConfiguracion()
+    prefijoFolio.value = config.folio?.prefijo_default || 'P'
+    anioFolio.value = config.folio?.anio || new Date().getFullYear()
     document.documentElement.style.setProperty('--margen-superior', config.estilo.margen_superior + 'cm')
     document.documentElement.style.setProperty('--margen-derecho', config.estilo.margen_derecho + 'cm')
     document.documentElement.style.setProperty('--margen-inferior', config.estilo.margen_inferior + 'cm')
@@ -101,7 +110,7 @@ function etiquetaTipo(tipo) {
 // signifiquen lo mismo en ambas pantallas.
 function faseDe(doc) {
     if (doc.estado === 'cancelado') return doc.revisionJefeDepto === 'corregir' ? 'c' : 'x'
-    if (doc.tipo === 'comision-externa') {
+    if (doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) {
         if (doc.estado === 'pendiente_jefeDepto') {
             if (doc.revisionJefeDepto === 'corregir') return 'c'
             if (doc.rechazadoPor) return 'r'
@@ -129,14 +138,14 @@ const REVISIONES = {
 }
 
 function infoEstado(doc) {
-    if (doc.tipo === 'comision-externa') {
+    if (doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) {
         // "Corrección solicitada" aplica sin importar el estado
         // (pendiente_jefeDepto o cancelado).
         if (doc.revisionJefeDepto === 'corregir') return REVISIONES.corregir
         // Se le compartió para que ELLA corrija — "En revisión
         // (Jefe de Depto)" sería engañoso, es su turno de actuar.
         if (doc.esperandoCorreccionSecretaria) {
-            return { texto: 'Compartido\npendiente de tu corrección', clase: 'text-bg-warning' }
+            return { texto: 'Pendiente de tu corrección', clase: 'text-bg-warning' }
         }
         // Mientras espera revisión del Jefe, no se muestra nada —
         // igual que "sin revisar" en documentos normales.
@@ -225,6 +234,18 @@ const filasVisibles = computed(() => {
     if (filtroTipo.value) {
         filas = filas.filter(f => f.tipo === filtroTipo.value)
     }
+    if (busqueda.value.trim()) {
+        const q = busqueda.value.trim().toLowerCase()
+        filas = filas.filter(f => {
+            const folio = (f.folio || '').toLowerCase()
+            const nombre = (personaRelevante(f) || '').toLowerCase()
+            const oficioTexto = f.campos?.numero_oficio
+                ? formatearFolio(f.campos.numero_oficio, prefijoFolio.value, anioFolio.value).toLowerCase()
+                : ''
+            const folioMantenimiento = (f.campos?.folio_mantenimiento || '').toLowerCase()
+            return folio.includes(q) || nombre.includes(q) || oficioTexto.includes(q) || folioMantenimiento.includes(q)
+        })
+    }
     if (filtroFechaInicio.value || filtroFechaFin.value) {
         filas = filas.filter(f => {
             const fecha = fechaAOrden(f.fecha)
@@ -244,6 +265,30 @@ function limpiarFiltros() {
     filtroTipo.value = ''
     activeStage.value = null
     creadorFiltro.value = 'todos'
+}
+
+const comboImprimir = ref({ mostrando: false, htmlPrimero: '', htmlSegundo: '' })
+
+// trae el documento pareja ya guardado y arma la misma vista de 2
+// mitades para reimprimir no crea nada nuevo, usa lo que ya quedo
+// guardado la primera vez.
+async function imprimirCombinado(doc) {
+    const otro = await getDocumentoPorId(doc.vinculadoCon)
+    const [primero, segundo] = (doc.creadoEn || 0) <= (otro.creadoEn || 0) ? [doc, otro] : [otro, doc]
+    comboImprimir.value = { mostrando: true, htmlPrimero: primero.cuerpo, htmlSegundo: segundo.cuerpo }
+    await nextTick()
+    window.print()
+    comboImprimir.value.mostrando = false
+}
+
+
+//para los folios
+
+function folioRealDe(doc) {
+    return _folioRealDe(doc, prefijoFolio.value, anioFolio.value)
+}
+function textoVinculado(doc) {
+    return _textoVinculado(doc, documentos.value, prefijoFolio.value, anioFolio.value)
 }
 
 function verDocumento(doc) {
@@ -270,7 +315,7 @@ function editar(doc) {
 }
 
 function puedeEliminar(doc) {
-    if (doc.tipo === 'comision-externa') return false
+    if (doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) return false
     if (esCompartido(doc)) return false
     if (usuario.rol === 'admin') return true
     if (!esMio(doc)) return false
@@ -394,241 +439,270 @@ async function borrarTarea(entrada) {
 </script>
 
 <template>
-    <AdminLayout>
-        <!-- CHIPS -->
-        <section class="panel mb-3 p-3">
-            <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
-                <button type="button" class="btn btn-primary btn-sm" @click="abrirModal">
-                    <i class="bi bi-plus-square-fill"></i> Nueva entrada
-                </button>
-
-                <div class="d-flex flex-wrap gap-1">
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'tareas' ? 'btn-warning' : 'btn-outline-warning'"
-                        @click="toggleStage('tareas')">
-                        Pendientes <span class="badge bg-white text-dark ms-1">{{ conteos.tareas }}</span>
+    <div :class="{ 'oculto-al-imprimir': comboImprimir.mostrando }">
+        <AdminLayout>
+            <!-- CHIPS -->
+            <section class="panel mb-3 p-3">
+                <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                    <button type="button" class="btn btn-primary btn-sm" @click="abrirModal">
+                        <i class="bi bi-plus-square-fill"></i> Nueva entrada
                     </button>
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'en_revision' ? 'btn-info' : 'btn-outline-info'"
-                        @click="toggleStage('en_revision')">
-                        En revisión <span class="badge bg-white text-dark ms-1">{{ conteos.enRevision }}</span>
-                    </button>
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'r' ? 'btn-danger' : 'btn-outline-danger'" @click="toggleStage('r')">
-                        Rechazados <span class="badge bg-white text-dark ms-1">{{ conteos.r }}</span>
-                    </button>
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'c' ? 'btn-warning' : 'btn-outline-warning'" @click="toggleStage('c')">
-                        Corrección solicitada <span class="badge bg-white text-dark ms-1">{{ conteos.c }}</span>
-                    </button>
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'autorizado' ? 'btn-success' : 'btn-outline-success'"
-                        @click="toggleStage('autorizado')">
-                        Autorizados <span class="badge bg-white text-dark ms-1">{{ conteos.autorizado }}</span>
-                    </button>
-                    <button type="button" class="btn btn-sm"
-                        :class="activeStage === 'x' ? 'btn-danger' : 'btn-outline-danger'" @click="toggleStage('x')">
-                        Cancelados <span class="badge bg-white text-dark ms-1">{{ conteos.x }}</span>
-                    </button>
-                </div>
-            </div>
 
-            <div class="d-flex flex-wrap align-items-end gap-2 mt-3 pt-3 border-top">
-                <div>
-                    <label class="form-label small mb-1">Fecha inicio</label>
-                    <input type="date" class="form-control form-control-sm" v-model="filtroFechaInicio">
-                </div>
-                <div>
-                    <label class="form-label small mb-1">Fecha fin</label>
-                    <input type="date" class="form-control form-control-sm" v-model="filtroFechaFin">
-                </div>
-                <div>
-                    <label class="form-label small mb-1">Tipo de documento</label>
-                    <select class="form-select form-select-sm" v-model="filtroTipo">
-                        <option value="">Todos</option>
-                        <option v-for="t in TIPOS_DOCUMENTO" :key="t.valor" :value="t.valor">{{ t.etiqueta }}</option>
-                    </select>
-                </div>
-                <button type="button" class="btn btn-danger btn-sm" @click="limpiarFiltros">
-                    <i class="bi bi-x-circle"></i> Limpiar filtros
-                </button>
-                <button type="button" class="btn btn-outline-danger btn-sm ms-auto" @click="eliminarTodo">
-                    <i class="bi bi-trash3"></i> Borrar todo lo mío
-                </button>
-            </div>
-
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                <span class="small text-muted fw-semibold text-uppercase">Creado por:</span>
-                <button type="button" class="btn btn-sm"
-                    :class="creadorFiltro === 'todos' ? 'btn-secondary' : 'btn-outline-secondary'"
-                    @click="creadorFiltro = 'todos'">Todos</button>
-                <button type="button" class="btn btn-sm"
-                    :class="creadorFiltro === 'mi' ? 'btn-secondary' : 'btn-outline-secondary'"
-                    @click="creadorFiltro = 'mi'">Yo</button>
-                <button type="button" class="btn btn-sm"
-                    :class="creadorFiltro === 'admin' ? 'btn-secondary' : 'btn-outline-secondary'"
-                    @click="creadorFiltro = 'admin'">Compartido por Admin</button>
-            </div>
-        </section>
-
-        <!-- TABLA -->
-        <section class="panel">
-            <div v-if="cargando" class="text-center py-5">
-                <span class="spinner-border"></span>
-            </div>
-
-            <div v-else-if="filasVisibles.length === 0" class="text-center text-muted py-4">
-                <i class="bi bi-inbox" style="font-size: 2rem;"></i>
-                <p class="mt-2 mb-0">No se encontraron resultados con estos filtros</p>
-            </div>
-
-            <div v-else class="table-responsive">
-                <table class="table align-middle mb-0" style="table-layout: fixed; width: 100%;">
-                    <thead>
-                        <tr>
-                            <th style="width: 9%;">Folio</th>
-                            <th style="width: 9%;">Fecha</th>
-                            <th style="width: 11%;">Tipo</th>
-                            <th style="width: 15%;">Nombre</th>
-                            <th style="width: 24%;">Descripción</th>
-                            <th style="width: 13%;">Estado</th>
-                            <th style="width: 19%;">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
-                            <td class="text-muted small">—</td>
-                            <td><span class="text-muted small">{{ fila.fecha }}</span>
-                                <br><span class="text-muted small">caduca {{ fila.fechaCaducidad }}</span>
-                            </td>
-                            <td>{{ fila.tipo }}</td>
-                            <td class="text-muted">—</td>
-                            <td>{{ fila.descripcion }}</td>
-                            <td>
-                                <span v-if="fila.estado === 'pendiente'"
-                                    class="badge bg-warning-subtle text-warning">Pendiente</span>
-                                <span v-else-if="fila.estado === 'elaboracion'"
-                                    class="badge bg-primary-subtle text-primary">En elaboración</span>
-                                <span v-else class="badge bg-secondary-subtle text-secondary">{{ fila.estado }}</span>
-                                <div v-if="fila.observacionJefeDepto" class="small text-muted mt-1">{{
-                                    fila.observacionJefeDepto }}</div>
-                                <div v-if="String(fila.asignadoA) === String(usuario.id) && !esEntradaPropia(fila)"
-                                    class="small text-muted mt-1">
-                                    Asignada por {{ nombreUsuario(fila.creadoPor) }}
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-inline-flex flex-wrap gap-1 justify-content-start">
-                                    <button v-if="fila.estado !== 'eliminado'" type="button"
-                                        class="btn btn-sm btn-success" title="Crear documento"
-                                        @click="irACrearDocumento(fila)">
-                                        <i class="bi bi-file-earmark-plus"></i>
-                                    </button>
-                                    <button v-if="esEntradaPropia(fila) && fila.estado !== 'eliminado'" type="button"
-                                        class="btn btn-sm btn-outline-secondary" title="Editar"
-                                        @click="editarTarea(fila)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button v-if="esEntradaPropia(fila)" type="button" class="btn btn-sm btn-danger"
-                                        title="Borrar" @click="borrarTarea(fila)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-
-                        <tr v-for="doc in filasVisibles.filter(f => !f.esTarea)" :key="'d' + doc.id">
-                            <td class="text-muted small">{{ doc.folio }}</td>
-                            <td>{{ doc.fecha }}</td>
-                            <td>{{ etiquetaTipo(doc.tipo) }}</td>
-                            <td>{{ personaRelevante(doc) || doc.asunto || '—' }}</td>
-                            <td class="text-muted small">{{ doc.notaAlCompartir || bitacoraPorDocumentoId[doc.id]?.descripcion || '—' }}</td>
-                            <td>
-                                <span v-if="infoEstado(doc)" class="badge" :class="infoEstado(doc).clase"
-                                    style="white-space: pre-line;">
-                                    {{ infoEstado(doc).texto }}
-                                </span>
-                                <div v-if="doc.observaciones || doc.observacionJefeDepto || doc.motivoCancelacion"
-                                    class="small text-muted mt-1">
-                                    {{ doc.observaciones || doc.observacionJefeDepto || doc.motivoCancelacion }}
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-inline-flex flex-wrap gap-1 justify-content-start align-items-center">
-                                    <span v-if="doc.compartido" class="badge bg-info-subtle text-info">
-                                        <i class="bi bi-share-fill me-1"></i>Admin
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-primary" title="Ver"
-                                        @click="verDocumento(doc)">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button v-if="puedeEditar(doc)" type="button"
-                                        class="btn btn-sm btn-outline-secondary" title="Editar" @click="editar(doc)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button
-                                        v-if="doc.tipo !== 'comision-externa' && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && doc.revisionJefeDepto !== 'corregir'"
-                                        type="button" class="btn btn-sm btn-outline-warning" title="Enviar a revisión"
-                                        @click="enviarARevision(doc)">
-                                        <i class="bi bi-send"></i>
-                                    </button>
-                                    <button v-if="puedeCancelar(doc)" type="button"
-                                        class="btn btn-sm btn-outline-danger" title="Cancelar"
-                                        @click="cancelarDoc(doc)">
-                                        <i class="bi bi-slash-circle"></i>
-                                    </button>
-                                    <button v-if="puedeEliminar(doc)" type="button" class="btn btn-sm btn-danger"
-                                        title="Eliminar" @click="eliminar(doc)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <div class="modal fade" id="modalNuevaEntradaBitacoraSecApo" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{{ editandoId ? 'Editar entrada' : 'Nueva entrada' }}</h5>
-                        <button type="button" class="btn-close" @click="cerrarModal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Fecha <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" v-model="nuevaEntrada.fecha" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Fecha de caducidad</label>
-                                <input type="date" class="form-control" v-model="nuevaEntrada.fechaCaducidad">
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Descripción <span class="text-danger">*</span></label>
-                            <textarea class="form-control" rows="3" placeholder="¿Qué necesitas recordar hacer?"
-                                v-model="nuevaEntrada.descripcion" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tipo de documento <span class="text-danger">*</span></label>
-                            <select class="form-select" v-model="nuevaEntrada.tipo" required>
-                                <option value="">Selecciona un tipo</option>
-                                <option v-for="tipo in Object.keys(TIPO_A_RUTA)" :key="tipo" :value="tipo">{{ tipo }}
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @click="cerrarModal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" @click="guardarTarea">
-                            {{ editandoId ? 'Guardar cambios' : 'Guardar' }}
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'tareas' ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="toggleStage('tareas')">
+                            Pendientes <span class="badge bg-white text-dark ms-1">{{ conteos.tareas }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'en_revision' ? 'btn-info' : 'btn-outline-info'"
+                            @click="toggleStage('en_revision')">
+                            En revisión <span class="badge bg-white text-dark ms-1">{{ conteos.enRevision }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'r' ? 'btn-danger' : 'btn-outline-danger'"
+                            @click="toggleStage('r')">
+                            Rechazados <span class="badge bg-white text-dark ms-1">{{ conteos.r }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'c' ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="toggleStage('c')">
+                            Corrección solicitada <span class="badge bg-white text-dark ms-1">{{ conteos.c }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'autorizado' ? 'btn-success' : 'btn-outline-success'"
+                            @click="toggleStage('autorizado')">
+                            Autorizados <span class="badge bg-white text-dark ms-1">{{ conteos.autorizado }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'x' ? 'btn-danger' : 'btn-outline-danger'"
+                            @click="toggleStage('x')">
+                            Cancelados <span class="badge bg-white text-dark ms-1">{{ conteos.x }}</span>
                         </button>
                     </div>
                 </div>
+
+                <div class="d-flex flex-wrap align-items-end gap-2 mt-3 pt-3 border-top">
+                    <div>
+                        <label class="form-label small mb-1" style="min-width: 220px;">Buscar</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="Número de oficio o nombre…"
+                            v-model="busqueda">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1">Fecha inicio</label>
+                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaInicio">
+                    </div>
+                    <div>
+                        <label class="form-label small mb-1">Fecha fin</label>
+                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaFin">
+                    </div>
+
+                    <div>
+                        <label class="form-label small mb-1">Tipo de documento</label>
+                        <select class="form-select form-select-sm" v-model="filtroTipo">
+                            <option value="">Todos</option>
+                            <option v-for="t in TIPOS_DOCUMENTO" :key="t.valor" :value="t.valor">{{ t.etiqueta }}
+                            </option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" @click="limpiarFiltros">
+                        <i class="bi bi-x-circle"></i> Limpiar filtros
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm ms-auto" @click="eliminarTodo">
+                        <i class="bi bi-trash3"></i> Borrar todo lo mío
+                    </button>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    <span class="small text-muted fw-semibold text-uppercase">Creado por:</span>
+                    <button type="button" class="btn btn-sm"
+                        :class="creadorFiltro === 'todos' ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="creadorFiltro = 'todos'">Todos</button>
+                    <button type="button" class="btn btn-sm"
+                        :class="creadorFiltro === 'mi' ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="creadorFiltro = 'mi'">Yo</button>
+                    <button type="button" class="btn btn-sm"
+                        :class="creadorFiltro === 'admin' ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="creadorFiltro = 'admin'">Compartido por Admin</button>
+                </div>
+            </section>
+
+            <!-- TABLA -->
+            <section class="panel">
+                <div v-if="cargando" class="text-center py-5">
+                    <span class="spinner-border"></span>
+                </div>
+
+                <div v-else-if="filasVisibles.length === 0" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">No se encontraron resultados con estos filtros</p>
+                </div>
+
+                <div v-else class="table-responsive">
+                    <table class="table align-middle mb-0" style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="width: 9%;">Folio</th>
+                                <th style="width: 9%;">Fecha</th>
+                                <th style="width: 11%;">Tipo</th>
+                                <th style="width: 15%;">Nombre</th>
+                                <th style="width: 24%;">Descripción</th>
+                                <th style="width: 13%;">Estado</th>
+                                <th style="width: 19%;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
+                                <td class="text-muted small">—</td>
+                                <td><span class="text-muted small">{{ fila.fecha }}</span>
+                                    <br><span class="text-muted small">caduca {{ fila.fechaCaducidad }}</span>
+                                </td>
+                                <td>{{ fila.tipo }}</td>
+                                <td class="text-muted">—</td>
+                                <td>{{ fila.descripcion }}</td>
+                                <td>
+                                    <span v-if="fila.estado === 'pendiente'"
+                                        class="badge bg-warning-subtle text-warning">Pendiente</span>
+                                    <span v-else-if="fila.estado === 'elaboracion'"
+                                        class="badge bg-primary-subtle text-primary">En elaboración</span>
+                                    <span v-else class="badge bg-secondary-subtle text-secondary">{{ fila.estado
+                                        }}</span>
+                                    <div v-if="fila.observacionJefeDepto" class="small text-muted mt-1">{{
+                                        fila.observacionJefeDepto }}</div>
+
+                                </td>
+                                <td>
+                                    <div class="d-inline-flex flex-wrap gap-1 justify-content-start">
+                                        <button v-if="fila.estado !== 'eliminado'" type="button"
+                                            class="btn btn-sm btn-success" title="Crear documento"
+                                            @click="irACrearDocumento(fila)">
+                                            <i class="bi bi-file-earmark-plus"></i>
+                                        </button>
+                                        <button v-if="esEntradaPropia(fila) && fila.estado !== 'eliminado'"
+                                            type="button" class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            @click="editarTarea(fila)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button v-if="esEntradaPropia(fila)" type="button" class="btn btn-sm btn-danger"
+                                            title="Borrar" @click="borrarTarea(fila)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr v-for="doc in filasVisibles.filter(f => !f.esTarea)" :key="'d' + doc.id">
+                                <td class="text-muted small">{{ folioRealDe(doc) || doc.folio }}
+                                    <template v-if="doc.vinculadoCon"><br><span class="text-info">Vinculado con {{
+                                        textoVinculado(doc) }}</span></template>
+                                </td>
+                                <td>{{ doc.fecha }}</td>
+                                <td>{{ etiquetaTipo(doc.tipo) }}</td>
+                                <td>{{ personaRelevante(doc) || doc.asunto || '—' }}</td>
+                                <td class="text-muted small">{{
+                                    bitacoraPorDocumentoId[doc.id]?.descripcion || '—' }}</td>
+                                <td>
+                                    <span v-if="infoEstado(doc)" class="badge" :class="infoEstado(doc).clase"
+                                        style="white-space: pre-line;">
+                                        {{ infoEstado(doc).texto }}
+                                    </span>
+                                    <div v-if="doc.observaciones || doc.observacionJefeDepto || doc.motivoCancelacion || doc.notaAlCompartir"
+                                        class="small text-muted mt-1">
+                                        {{ doc.observaciones || doc.observacionJefeDepto || doc.motivoCancelacion ||
+                                            doc.notaAlCompartir }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-inline-flex flex-wrap gap-1 justify-content-start align-items-center">
+                                        <span v-if="doc.compartido" class="badge bg-info-subtle text-info">
+                                            <i class="bi bi-share-fill me-1"></i>Admin
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-primary" title="Ver"
+                                            @click="verDocumento(doc)">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button v-if="puedeEditar(doc)" type="button"
+                                            class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            @click="editar(doc)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button
+                                            v-if="doc.tipo !== 'comision-externa' && !(doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto) && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && doc.revisionJefeDepto !== 'corregir'"
+                                            type="button" class="btn btn-sm btn-outline-warning"
+                                            title="Enviar a revisión" @click="enviarARevision(doc)">
+                                            <i class="bi bi-send"></i>
+                                        </button>
+                                        <button v-if="puedeCancelar(doc)" type="button"
+                                            class="btn btn-sm btn-outline-danger" title="Cancelar"
+                                            @click="cancelarDoc(doc)">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                        <button v-if="puedeEliminar(doc)" type="button" class="btn btn-sm btn-danger"
+                                            title="Eliminar" @click="eliminar(doc)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button v-if="doc.vinculadoCon" type="button"
+                                            class="btn btn-sm btn-outline-info"
+                                            title="Imprimir combinado (con su pareja)" @click="imprimirCombinado(doc)">
+                                            <i class="bi bi-files"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="modal fade" id="modalNuevaEntradaBitacoraSecApo" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ editandoId ? 'Editar entrada' : 'Nueva entrada' }}</h5>
+                            <button type="button" class="btn-close" @click="cerrarModal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" v-model="nuevaEntrada.fecha" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha de caducidad</label>
+                                    <input type="date" class="form-control" v-model="nuevaEntrada.fechaCaducidad">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Descripción <span class="text-danger">*</span></label>
+                                <textarea class="form-control" rows="3" placeholder="¿Qué necesitas recordar hacer?"
+                                    v-model="nuevaEntrada.descripcion" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de documento <span class="text-danger">*</span></label>
+                                <select class="form-select" v-model="nuevaEntrada.tipo" required>
+                                    <option value="">Selecciona un tipo</option>
+                                    <option v-for="tipo in Object.keys(TIPO_A_RUTA)" :key="tipo" :value="tipo">{{ tipo
+                                        }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @click="cerrarModal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" @click="guardarTarea">
+                                {{ editandoId ? 'Guardar cambios' : 'Guardar' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </AdminLayout>
+    </div>
+
+    <div v-if="comboImprimir.mostrando" class="combo-wrapper">
+        <div class="bg-white border rounded documento-carta" v-html="comboImprimir.htmlPrimero"></div>
+        <div class="bg-white border rounded documento-carta combo-segunda-incidencia"
+            v-html="comboImprimir.htmlSegundo">
         </div>
-    </AdminLayout>
+    </div>
 </template>

@@ -34,6 +34,13 @@ export function useTextoDocumento() {
         return `del ${inicio.getDate()} de ${meses[inicio.getMonth()]} al ${fin.getDate()} de ${meses[fin.getMonth()]} de ${fin.getFullYear()}`;
     }
 
+    function diasATexto(inicioStr, finStr) {
+        if (!inicioStr || !finStr) return "";
+        return inicioStr === finStr
+            ? `el día ${fechaATexto(inicioStr)}`
+            : `los días ${rangoFechasATexto(inicioStr, finStr)}`;
+    }
+
     function mesAnioATexto(fechaStr) {
         if (!fechaStr) return "";
         const fecha = new Date(fechaStr + "T00:00:00");
@@ -88,6 +95,7 @@ export function useTextoDocumento() {
     return {
         fechaATexto,
         rangoFechasATexto,
+        diasATexto,
         mesAnioATexto,
         horaATexto,
         renderPlantilla,

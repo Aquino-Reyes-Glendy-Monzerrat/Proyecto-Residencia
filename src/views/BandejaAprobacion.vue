@@ -43,7 +43,10 @@ async function autorizar(doc) {
     if (!confirm(`¿Autorizar el documento ${doc.folio}?`)) return
     procesando.value = true
     try {
-        await autorizarDocumento(doc.id, siguienteEstado)
+        const destino = (usuario?.rol === 'subdirectora' && doc.campos?.para_jefe_depto)
+            ? 'autorizado'
+            : siguienteEstado
+        await autorizarDocumento(doc.id, destino)
         await cargar()
     } finally {
         procesando.value = false
@@ -111,9 +114,11 @@ async function confirmarRechazo(doc) {
                     <div v-if="rechazandoId === doc.id" class="alert alert-danger mt-3 mb-0">
                         <label class="form-label small fw-semibold">Motivo por el que no se autoriza</label>
                         <p class="small text-muted mb-2">
-                            El documento será devuelto al Jefe del Depto. de Sistemas y Computación con el motivo por el cual no se autorizó para su revisión o corrección.
+                            El documento será devuelto al Jefe del Depto. de Sistemas y Computación con el motivo por el
+                            cual no se autorizó para su revisión o corrección.
                         </p>
-                        <textarea class="form-control form-control-sm mb-2" rows="3" v-model="textoObservaciones"></textarea>
+                        <textarea class="form-control form-control-sm mb-2" rows="3"
+                            v-model="textoObservaciones"></textarea>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-secondary" :disabled="procesando"
                                 @click="cancelarRechazo">Cancelar</button>

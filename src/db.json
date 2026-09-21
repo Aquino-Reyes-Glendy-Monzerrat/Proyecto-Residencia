@@ -282,9 +282,7 @@
       "semestre": 1,
       "letra": "A",
       "periodo": "AGO-DIC",
-      "docenteIds": [
-        "7"
-      ],
+      "docenteIds": [],
       "id": "SdBkKfxEsvc"
     },
     {
@@ -293,9 +291,7 @@
       "semestre": 1,
       "letra": "B",
       "periodo": "AGO-DIC",
-      "docenteIds": [
-        "18"
-      ],
+      "docenteIds": [],
       "id": "USY_7h-S-ew"
     },
     {
@@ -304,10 +300,19 @@
       "semestre": 1,
       "letra": "C",
       "periodo": "AGO-DIC",
-      "docenteIds": [
-        "23"
-      ],
+      "docenteIds": [],
       "id": "nUXeALi_TVo"
+    },
+    {
+      "clave": "I3U",
+      "carrera": "I",
+      "semestre": 3,
+      "letra": "U",
+      "periodo": "AGO-DIC",
+      "docenteIds": [
+        "9"
+      ],
+      "id": "DbBT3Zf2jPU"
     }
   ],
   "plantillas": [
@@ -319,28 +324,22 @@
       "cuerpo": "<p>Por este medio se le comunica que ha sido {asignado_texto} como <strong>{tutor_texto}</strong> de {grupo_o_grupos}, durante el periodo <strong>{periodo_texto}</strong>: {lista_grupos}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
     },
     {
-      "id": "1",
-      "tipo": "comision-curso-programa",
-      "nombre": "Comisión - Programa de Actualización Disciplinar",
-      "cuerpo": "<p>En el marco del <strong>{nombre_programa}</strong> y con la finalidad de fortalecer la formación, actualización y capacitación del capital humano; por este medio le informo que ha sido comisionado(a), para trasladarse a la ciudad de <strong>{ciudad_destino}</strong>, para asistir al curso <strong>{numero_curso}</strong> titulado: \"<strong>{nombre_curso}</strong>\" del programa educativo en <strong>{area_curso}</strong>. Dicho curso se llevará a cabo  <strong>{rango_fechas}</strong>{horario_texto}, en {lugar_evento}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
-    },
-    {
       "id": "12",
       "tipo": "comision-externa",
       "nombre": "Comisión Externa",
-      "cuerpo": "<p>Por este medio, me permito informarle que ha sido {comisionado_texto} para que se traslade a <strong>{ciudad_destino}</strong> los días <strong>{rango_fechas}</strong>, para asistir al <strong>{tipo_actividad}</strong> \"<strong>{nombre_curso}</strong>\".</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+      "cuerpo": "<p>Por este medio, me permito informarle que ha sido {comisionado_texto} para que se traslade a la ciudad de <strong>{ciudad_destino}</strong> <strong>{dias_texto}</strong>, para asistir <strong>{tipo_actividad}</strong>{lugar_texto}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
     },
     {
       "id": "2",
       "tipo": "comision-interna",
       "nombre": "Comisión Interna",
-      "cuerpo": "<p>Por este medio se le informa que ha sido {comisionado_texto} para trasladarse el <strong>{fecha_texto}</strong>, <strong>{lugar_evento}</strong>, con la finalidad de <strong>{motivo}</strong>.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+      "cuerpo": "<p>Por este medio se le informa que ha sido {comisionado_texto} para trasladarse <strong>{dias_texto}</strong>, <strong>{lugar_evento}</strong>, con la finalidad de <strong>{motivo}</strong>.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
     },
     {
       "id": "3",
       "tipo": "memorandum-solventacion-faltas",
       "nombre": "Memorándum - Solventación de Faltas",
-      "cuerpo": "<p>Por este medio me permito informarle que {articulo_c} <strong>C. {nombre_solicitante}</strong>, se le solicita solventar inasistencias por los siguientes motivos:</p><p>{motivo}</p><p>Sin más por el momento le envío un cordial saludo.</p>"
+      "cuerpo": "<p>Por este medio me permito informarle que {articulo_c} <strong>C. {nombre_solicitante}</strong>, se le solicita solventar inasistencias por los siguientes motivos: {motivo}</p><p>Sin más por el momento le envío un cordial saludo.</p>"
     },
     {
       "id": "11",
@@ -387,7 +386,7 @@
       "id": "9",
       "tipo": "revision-tesis",
       "nombre": "Oficio de Revisión de Tesis",
-      "cuerpo": "<p>Por este medio, informo que el <strong>C. {nombre_estudiante}</strong> es egresado del Instituto Tecnológico de Chetumal desde <strong>{fecha_egreso_mes_texto}</strong>. ",
+      "cuerpo": "<p>Por este medio, informo que el <strong>C. {nombre_estudiante}</strong> {detalle_egresado}. ",
       "asunto": ""
     },
     {
@@ -400,7 +399,14 @@
       "id": "13",
       "tipo": "mantenimiento",
       "nombre": "Solicitud de Mantenimiento Correctivo/Preventivo",
-      "cuerpo": null
+      "cuerpo": null,
+      "encabezadoIso": {
+        "nombreDocumento": "Formato para Solicitud de Mantenimiento Correctivo y/o Preventivo Interno o Externo",
+        "fechaAprobacion": "22 noviembre 2022",
+        "revision": "4",
+        "sistemaGestion": "ISO 9001:2015<br>ISO 14001:2015<br>ISO 45001:2018",
+        "referenciaNorma": "ISO 9001:2015: 7.1.3<br>ISO 14001:2015: 8.1"
+      }
     }
   ],
   "configuracion": {
@@ -408,12 +414,54 @@
       "anio": 2026,
       "prefijo_default": "P",
       "memorandums": {
-        "actual": 0,
-        "reservados": []
+        "actual": 86,
+        "reservados": [
+          {
+            "numero": 1,
+            "usado": true
+          },
+          {
+            "numero": 2,
+            "usado": true
+          },
+          {
+            "numero": 3,
+            "usado": true
+          },
+          {
+            "numero": 4,
+            "usado": true
+          },
+          {
+            "numero": 5,
+            "usado": true
+          }
+        ]
       },
       "general": {
-        "actual": 0,
-        "reservados": []
+        "actual": 45,
+        "reservados": [
+          {
+            "numero": 12,
+            "usado": false
+          },
+          {
+            "numero": 13,
+            "usado": false
+          },
+          {
+            "numero": 14,
+            "usado": false
+          },
+          {
+            "numero": 15,
+            "usado": false
+          },
+          {
+            "numero": 16,
+            "usado": false
+          }
+        ]
       }
     },
     "estilo": {
@@ -426,15 +474,215 @@
       "margen_superior": 0.5,
       "margen_derecho": 1.5,
       "margen_inferior": 1.5,
-      "margen_izquierdo": 2.5,
+      "margen_izquierdo": 2,
       "tamano_asunto": 10,
       "tamano_ccp": 8,
       "tamano_lema": 8,
-      "tamano_lema_secundario": 7
+      "tamano_lema_secundario": 7,
+      "headerImgBase64": null,
+      "pieImgBase64": null
     }
   },
   "bitacora": [],
-  "documentos": [],
+  "documentos": [
+    {
+      "tipo": "memorandum-solventacion-faltas",
+      "asunto": "se enfermo",
+      "cuerpo": "<!-- Encabezado institucional --><div data-v-264e8c9b=\"\" class=\"w-100 mb-3 pb-2 encabezado-doc\"><img data-v-264e8c9b=\"\" src=\"/src/assets/images/logo-encabezado.png\" class=\"header-doc-img\" alt=\"Encabezado Institucional SEP TecNM\"></div><!-- Vista previa normal --><div data-v-264e8c9b=\"\"><!-- Encabezado alumnos (residencia y SS) --><!-- Encabezado memorándum --><div data-v-264e8c9b=\"\" class=\"d-flex justify-content-between mb-3\"><div data-v-264e8c9b=\"\" class=\"texto-destinatario\"><strong data-v-264e8c9b=\"\">DR. RUBEN FABIAN MANZANERO RODRIGUEZ</strong><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">JEFE DEL DEPARTAMENTO DE RECURSOS HUMANOS</strong></div><div data-v-264e8c9b=\"\" class=\"text-end texto-encabezado\">Chetumal, Quintana Roo, <span data-v-264e8c9b=\"\" class=\"fecha-resaltada\">21/09/2026</span><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">MEMORANDUM NO: P-085/2026</strong></div></div><!-- Cuerpo --><div data-v-264e8c9b=\"\" class=\"texto-cuerpo\"><p>Por este medio me permito informarle que el <strong>C. Carlos Eduardo Azueta León</strong>, se le solicita solventar inasistencias por los siguientes motivos: se enfermo</p><p>Sin más por el momento le envío un cordial saludo.</p></div><!-- Firma --><div data-v-264e8c9b=\"\" class=\"mt-4 texto-firma\"><strong data-v-264e8c9b=\"\" class=\"atentamente-spaced\">ATENTAMENTE</strong><br data-v-264e8c9b=\"\"><div data-v-264e8c9b=\"\" class=\"texto-lema\"> Excelencia en Educación Tecnológica® </div><div data-v-264e8c9b=\"\" class=\"texto-lema-secundario\"> Cultura, Ciencia y Tecnología para la Superación de México® </div><br data-v-264e8c9b=\"\"><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">DR. MANUEL ABRAHAM ZAPATA ENCALADA</strong><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">JEFE DEL DEPTO. DE SISTEMAS Y COMPUTACIÓN</strong><br data-v-264e8c9b=\"\"></div><!--v-if--></div><!-- Pie de pagina logo --><div data-v-264e8c9b=\"\" class=\"w-100 text-center pie-fijo\" style=\"font-size: 10px; line-height: 1.3;\"><img data-v-264e8c9b=\"\" src=\"/src/assets/images/pie.png\" alt=\"Pie de página\" class=\"pie-doc-img\"></div>",
+      "tipoRuta": "memorandum",
+      "subtipoGuardado": "memorandum-solventacion-faltas",
+      "campos": {
+        "fecha_documento": "2026-09-21",
+        "numero_oficio": "085",
+        "grado_docente": "DR.",
+        "nombre_destinatario": "Carlos Eduardo Azueta León",
+        "sexo_destinatario": "M",
+        "ciudad_destino": "",
+        "motivo": "se enfermo",
+        "fecha": "",
+        "hora_entrada": "",
+        "hora_salida": "",
+        "nombre_solicitante": "Carlos Eduardo Azueta León",
+        "numero_control": "",
+        "nombre_estudiante": "",
+        "carrera": "",
+        "nombre_proyecto": "",
+        "nombre_programa": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+        "nombre_asesor": "",
+        "nombre_revisor": "",
+        "nombre_revisor2": "",
+        "detalle_egresado": "",
+        "total_dias": "",
+        "texto_libre": "",
+        "nombre_curso": "",
+        "lugar_evento": "",
+        "horario": "",
+        "producto": "",
+        "tipo_actividad": "",
+        "lugar_especifico": "",
+        "para_jefe_depto": false,
+        "horario_inicio": "",
+        "horario_fin": "",
+        "ccp_destinos": [],
+        "ccp_iniciales": "",
+        "tipo_servicio": "",
+        "categoria_mantenimiento_equipo": false,
+        "categoria_centro_computo": false,
+        "area_solicitante": "Sistemas y Computación",
+        "nombre_solicitante_mant": "Manuel Abraham Zapata Encalada",
+        "fecha_solicitud_mant": "",
+        "descripcion_servicio": "",
+        "motivo_proveedor_externo": "",
+        "categoria_recursos_materiales": false,
+        "puesto_destinatario": ""
+      },
+      "creadoPor": "1",
+      "estado": "generado",
+      "observaciones": "",
+      "motivoCancelacion": "",
+      "revisionJefeDepto": "sin_revisar",
+      "observacionJefeDepto": "",
+      "solicitoRevision": false,
+      "folio": "DOC-2026-001",
+      "fecha": "21/9/2026",
+      "creadoEn": 1789969007750,
+      "id": 1,
+      "vinculadoCon": 2
+    },
+    {
+      "tipo": "memorandum-solventacion-faltas",
+      "asunto": "se enfermo",
+      "cuerpo": "\n        <div class=\"w-100 mb-3 pb-2 encabezado-doc\">\n            <img src=\"/src/assets/images/logo-encabezado.png\" class=\"header-doc-img\" alt=\"Encabezado Institucional SEP TecNM\">\n        </div>\n        <div class=\"d-flex justify-content-between mb-3\">\n            <div class=\"texto-destinatario\">\n                <strong>DR. RUBEN FABIAN MANZANERO RODRIGUEZ</strong><br>\n                <strong>JEFE DEL DEPARTAMENTO DE RECURSOS HUMANOS</strong>\n            </div>\n            <div class=\"text-end texto-encabezado\">\n                Chetumal, Quintana Roo, <span class=\"fecha-resaltada\">22/09/2026</span><br>\n                <strong>MEMORANDUM NO: P-086/2026</strong>\n            </div>\n        </div>\n        <div class=\"texto-cuerpo\"><p>Por este medio me permito informarle que el <strong>C. Carlos Eduardo Azueta León</strong>, se le solicita solventar inasistencias por los siguientes motivos: llego tarde</p><p>Sin más por el momento le envío un cordial saludo.</p></div>\n        <div class=\"mt-4 texto-firma\">\n            <strong class=\"atentamente-spaced\">ATENTAMENTE</strong><br>\n            <div class=\"texto-lema\">Excelencia en Educación Tecnológica®</div>\n            <div class=\"texto-lema-secundario\">Cultura, Ciencia y Tecnología para la Superación de México®</div>\n            <br><br>\n            <strong>DR. MANUEL ABRAHAM ZAPATA ENCALADA</strong><br>\n            <strong>JEFE DEL DEPTO. DE SISTEMAS Y COMPUTACIÓN</strong><br>\n        </div>\n        \n        <div class=\"w-100 text-center pie-fijo\" style=\"font-size: 10px; line-height: 1.3;\">\n            <img src=\"/src/assets/images/pie.png\" alt=\"Pie de página\" class=\"pie-doc-img\">\n        </div>\n    ",
+      "tipoRuta": "memorandum",
+      "subtipoGuardado": "memorandum-solventacion-faltas",
+      "campos": {
+        "fecha_documento": "2026-09-22",
+        "numero_oficio": "086",
+        "grado_docente": "DR.",
+        "nombre_destinatario": "Carlos Eduardo Azueta León",
+        "sexo_destinatario": "M",
+        "ciudad_destino": "",
+        "motivo": "llego tarde",
+        "fecha": "",
+        "hora_entrada": "",
+        "hora_salida": "",
+        "nombre_solicitante": "Carlos Eduardo Azueta León",
+        "numero_control": "",
+        "nombre_estudiante": "",
+        "carrera": "",
+        "nombre_proyecto": "",
+        "nombre_programa": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+        "nombre_asesor": "",
+        "nombre_revisor": "",
+        "nombre_revisor2": "",
+        "detalle_egresado": "",
+        "total_dias": "",
+        "texto_libre": "",
+        "nombre_curso": "",
+        "lugar_evento": "",
+        "horario": "",
+        "producto": "",
+        "tipo_actividad": "",
+        "lugar_especifico": "",
+        "para_jefe_depto": false,
+        "horario_inicio": "",
+        "horario_fin": "",
+        "ccp_destinos": [],
+        "ccp_iniciales": "",
+        "tipo_servicio": "",
+        "categoria_mantenimiento_equipo": false,
+        "categoria_centro_computo": false,
+        "area_solicitante": "Sistemas y Computación",
+        "nombre_solicitante_mant": "Manuel Abraham Zapata Encalada",
+        "fecha_solicitud_mant": "",
+        "descripcion_servicio": "",
+        "motivo_proveedor_externo": "",
+        "categoria_recursos_materiales": false,
+        "puesto_destinatario": ""
+      },
+      "creadoPor": "1",
+      "estado": "generado",
+      "observaciones": "",
+      "motivoCancelacion": "",
+      "revisionJefeDepto": "sin_revisar",
+      "observacionJefeDepto": "",
+      "solicitoRevision": false,
+      "folio": "DOC-2026-002",
+      "fecha": "21/9/2026",
+      "creadoEn": 1789969007862,
+      "vinculadoCon": 1,
+      "id": 2
+    },
+    {
+      "tipo": "aceptacion-residencia",
+      "asunto": "CARTA DE ACEPTACIÓN",
+      "cuerpo": "<!-- Encabezado institucional --><div data-v-264e8c9b=\"\" class=\"w-100 mb-3 pb-2 encabezado-doc\"><img data-v-264e8c9b=\"\" src=\"/src/assets/images/logo-encabezado.png\" class=\"header-doc-img\" alt=\"Encabezado Institucional SEP TecNM\"></div><!-- Vista previa normal --><div data-v-264e8c9b=\"\"><!-- Encabezado alumnos (residencia y SS) --><div data-v-264e8c9b=\"\" class=\"text-end mb-3 texto-encabezado\"><strong data-v-264e8c9b=\"\">DEPENDENCIA:</strong> Subdirección Académica.<br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">SECCIÓN:</strong> Sistemas y Computación.<br data-v-264e8c9b=\"\"> Oficio No. P-045/2026<br data-v-264e8c9b=\"\"><br data-v-264e8c9b=\"\"> Chetumal, Quintana Roo, <span data-v-264e8c9b=\"\" class=\"fecha-resaltada\">21/09/2026</span></div><!--  --><div data-v-264e8c9b=\"\" class=\"mb-3 text-end texto-asunto\"><strong data-v-264e8c9b=\"\">ASUNTO: CARTA DE ACEPTACIÓN</strong></div><br data-v-264e8c9b=\"\"><div data-v-264e8c9b=\"\" class=\"mb-3 texto-destinatario\"><strong data-v-264e8c9b=\"\">DRA. LOLY VICTORIA TENORIO RODRÍGUEZ</strong><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">JEFA DEL DEPTO. DE GESTIÓN TEC. Y VINCULACIÓN</strong><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">PRESENTE</strong></div><!-- Cuerpo --><div data-v-264e8c9b=\"\" class=\"texto-cuerpo\"><p>Por este medio, me permito hacer de su conocimiento que el (la) <strong>C. JOSE MIGUEL ALVARADO CHUC</strong>, alumno(a) de la especialidad de <strong>INGENIERÍA EN SISTEMAS COMPUTACIONALES</strong>, con número de control <strong>21390816</strong>, realizará su Residencia Profesional, con el proyecto de: <strong>\"\"</strong> cubriendo un total de <strong>600 hrs</strong>, iniciando el día <strong></strong> y concluyendo el día <strong></strong>.</p><p>Sin otro particular, aprovecho la ocasión para enviarle un cordial saludo.</p></div><!-- Firma --><div data-v-264e8c9b=\"\" class=\"mt-4 texto-firma\"><strong data-v-264e8c9b=\"\" class=\"atentamente-spaced\">ATENTAMENTE</strong><br data-v-264e8c9b=\"\"><div data-v-264e8c9b=\"\" class=\"texto-lema\"> Excelencia en Educación Tecnológica® </div><div data-v-264e8c9b=\"\" class=\"texto-lema-secundario\"> Cultura, Ciencia y Tecnología para la Superación de México® </div><br data-v-264e8c9b=\"\"><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">DR. MANUEL ABRAHAM ZAPATA ENCALADA</strong><br data-v-264e8c9b=\"\"><strong data-v-264e8c9b=\"\">JEFE DEL DEPTO. DE SISTEMAS Y COMPUTACIÓN</strong><br data-v-264e8c9b=\"\"></div><!--v-if--></div><!-- Pie de pagina logo --><div data-v-264e8c9b=\"\" class=\"w-100 text-center pie-fijo\" style=\"font-size: 10px; line-height: 1.3;\"><img data-v-264e8c9b=\"\" src=\"/src/assets/images/pie.png\" alt=\"Pie de página\" class=\"pie-doc-img\"></div>",
+      "tipoRuta": "aceptacion",
+      "subtipoGuardado": "aceptacion-residencia",
+      "campos": {
+        "fecha_documento": "2026-09-21",
+        "numero_oficio": "045",
+        "grado_docente": "",
+        "nombre_destinatario": "",
+        "sexo_destinatario": "",
+        "ciudad_destino": "",
+        "motivo": "",
+        "fecha": "",
+        "hora_entrada": "",
+        "hora_salida": "",
+        "nombre_solicitante": "",
+        "numero_control": "21390816",
+        "nombre_estudiante": "Jose Miguel Alvarado Chuc",
+        "carrera": "Ingeniería en Sistemas Computacionales",
+        "nombre_proyecto": "",
+        "nombre_programa": "",
+        "fecha_inicio": "",
+        "fecha_fin": "",
+        "nombre_asesor": "",
+        "nombre_revisor": "",
+        "nombre_revisor2": "",
+        "detalle_egresado": "",
+        "total_dias": "",
+        "texto_libre": "",
+        "nombre_curso": "",
+        "lugar_evento": "",
+        "horario": "",
+        "producto": "",
+        "tipo_actividad": "",
+        "lugar_especifico": "",
+        "para_jefe_depto": false,
+        "horario_inicio": "",
+        "horario_fin": "",
+        "ccp_destinos": [],
+        "ccp_iniciales": "",
+        "tipo_servicio": "",
+        "categoria_mantenimiento_equipo": false,
+        "categoria_centro_computo": false,
+        "area_solicitante": "Sistemas y Computación",
+        "nombre_solicitante_mant": "Manuel Abraham Zapata Encalada",
+        "fecha_solicitud_mant": "",
+        "descripcion_servicio": "",
+        "motivo_proveedor_externo": "",
+        "categoria_recursos_materiales": false,
+        "puesto_destinatario": ""
+      },
+      "creadoPor": "1",
+      "estado": "generado",
+      "observaciones": "",
+      "motivoCancelacion": "",
+      "revisionJefeDepto": "sin_revisar",
+      "observacionJefeDepto": "",
+      "solicitoRevision": false,
+      "folio": "DOC-2026-003",
+      "fecha": "21/9/2026",
+      "creadoEn": 1789969032786,
+      "id": 3
+    }
+  ],
   "firmantes": [
     {
       "id": "1",
@@ -570,6 +818,98 @@
     {
       "id": "6",
       "etiqueta": "Área Solicitante"
+    }
+  ],
+  "fuentes": [
+    {
+      "id": "1",
+      "valor": "'Noto Sans', Arial, sans-serif",
+      "etiqueta": "Noto Sans (oficial)"
+    },
+    {
+      "id": "2",
+      "valor": "Arial, \"Helvetica Neue\", Helvetica, sans-serif",
+      "etiqueta": "Arial"
+    },
+    {
+      "id": "3",
+      "valor": "Calibri, \"Segoe UI\", Arial, sans-serif",
+      "etiqueta": "Calibri"
+    },
+    {
+      "id": "4",
+      "valor": "\"Times New Roman\", Times, serif",
+      "etiqueta": "Times New Roman"
+    },
+    {
+      "id": "5",
+      "valor": "Georgia, \"Times New Roman\", serif",
+      "etiqueta": "Georgia"
+    },
+    {
+      "id": "6",
+      "valor": "Verdana, Arial, sans-serif",
+      "etiqueta": "Verdana"
+    },
+    {
+      "id": "7",
+      "valor": "Tahoma, Verdana, sans-serif",
+      "etiqueta": "Tahoma"
+    },
+    {
+      "id": "8",
+      "valor": "\"Trebuchet MS\", Verdana, sans-serif",
+      "etiqueta": "Trebuchet MS"
+    },
+    {
+      "id": "9",
+      "valor": "\"Segoe UI\", Tahoma, sans-serif",
+      "etiqueta": "Segoe UI"
+    },
+    {
+      "id": "10",
+      "valor": "Cambria, Georgia, serif",
+      "etiqueta": "Cambria"
+    },
+    {
+      "id": "11",
+      "valor": "Garamond, Georgia, serif",
+      "etiqueta": "Garamond"
+    },
+    {
+      "id": "12",
+      "valor": "\"Century Gothic\", Verdana, sans-serif",
+      "etiqueta": "Century Gothic"
+    },
+    {
+      "id": "13",
+      "valor": "\"Book Antiqua\", Palatino, serif",
+      "etiqueta": "Book Antiqua"
+    },
+    {
+      "id": "14",
+      "valor": "Montserrat, Arial, sans-serif",
+      "etiqueta": "Montserrat"
+    },
+    {
+      "id": "15",
+      "valor": "Roboto, Arial, sans-serif",
+      "etiqueta": "Roboto"
+    },
+    {
+      "id": "16",
+      "valor": "\"Open Sans\", Arial, sans-serif",
+      "etiqueta": "Open Sans"
+    },
+    {
+      "id": "17",
+      "valor": "Lato, Arial, sans-serif",
+      "etiqueta": "Lato"
+    },
+    {
+      "id": "18",
+      "valor": "Poppins, Arial, sans-serif",
+      "etiqueta": "Poppins"
     }
   ],
   "$schema": "./node_modules/json-server/schema.json"

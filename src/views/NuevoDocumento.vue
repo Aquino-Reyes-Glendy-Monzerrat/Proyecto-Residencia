@@ -8,17 +8,21 @@ import SelectorFolio from '@/components/SelectorFolio.vue'
 import { useFolio } from '../composables/UseFolio.js'
 import { useTextoDocumento } from '../composables/useTextoDocumento.js'
 import { getConfiguracion, consumirSiguienteFolio, marcarFolioReservado } from '../services/api.js'
-import headerImg from '@/assets/images/logo-encabezado.png'
-import pieImg from '@/assets/images/pie.png'
+// import headerImg from '@/assets/images/logo-encabezado.png'
+// import pieImg from '@/assets/images/pie.png'
 import { useSesion } from '@/composables/UseSesion.js'
 import { formatearFolio } from '@/utils/folio.js'
+import { useMemosJuntos } from '@/composables/useMemosJuntos.js'
+import { useImagenesDocumento } from '../composables/useImagenesDocumento.js'
+
+
 
 const config = ref(null)
-
+const { headerImgActual, pieImgActual } = useImagenesDocumento(config)
 
 const CIUDAD_FECHA = 'Chetumal, Quintana Roo,'
 
-const { fechaATexto, rangoFechasATexto, mesAnioATexto, horaATexto, renderPlantilla } = useTextoDocumento()
+const { fechaATexto, rangoFechasATexto, diasATexto, mesAnioATexto, horaATexto, renderPlantilla } = useTextoDocumento()
 
 
 function fechaConBarras(fechaStr) {
@@ -48,7 +52,9 @@ const docOriginal = ref(null) // el documento tal como estaba antes de editarlo
 // rechazó, a la Subdirectora por primera vez; si ya se rechazó, se
 // reenvía a ella; si edita Secretaria/Apoyo, siempre al Jefe de Depto.
 const destinoAlGuardarEdicion = computed(() => {
-    if (subtipo.value !== 'comision-externa') return null
+    const esComisionConCadena = subtipo.value === 'comision-externa' ||
+        (subtipo.value === 'comision-interna' && campos.value.para_jefe_depto)
+    if (!esComisionConCadena) return null
     if (usuarioActivo?.rol !== 'admin') {
         return {
             estado: 'pendiente_jefeDepto',
@@ -93,7 +99,7 @@ function camposIniciales() {
         nombre_asesor: '',
         nombre_revisor: '',
         nombre_revisor2: '',
-        fecha_egreso: '',
+        detalle_egresado: '',
         total_dias: '',
         texto_libre: '',
         nombre_curso: '',
@@ -101,6 +107,8 @@ function camposIniciales() {
         horario: '',
         producto: '',
         tipo_actividad: '',
+        lugar_especifico: '',
+        para_jefe_depto: false,
         horario_inicio: '',
         horario_fin: '',
         ccp_destinos: tipo === 'mantenimiento'
@@ -222,6 +230,14 @@ const categoriaFolio = computed(() => {
 // editar, el número ya asignado no se toca, solo se puede corregir.
 const { folioSeleccionado, mostrarReservados, folioMostradoTexto, reservadosConTexto } = useFolio(categoriaFolio, config)
 
+const {
+    combinarIncidencias, motivo2, fecha2,
+    folioSeleccionado2, mostrarReservados2, folioMostradoTexto2, reservadosConTexto2,
+    resolverNumeroFolio2, guardarSegundoYVincular, limpiarCombo,
+} = useMemosJuntos(categoriaFolio, config, folioSeleccionado)
+
+
+
 onMounted(async () => {
     config.value = await getConfiguracion()
     aplicarVariablesDocumento(config.value.estilo)
@@ -326,10 +342,16 @@ const vistaPrevia = computed(() => {
     }
     html = html.replaceAll('{fecha_texto}', fechaATexto(campos.value.fecha))
     html = html.replaceAll('{rango_fechas}', rangoFechasATexto(campos.value.fecha_inicio, campos.value.fecha_fin))
+    html = html.replaceAll('{dias_texto}', diasATexto(campos.value.fecha_inicio, campos.value.fecha_fin))
     html = html.replaceAll('{fecha_inicio_texto}', fechaATexto(campos.value.fecha_inicio))
     html = html.replaceAll('{fecha_fin_texto}', fechaATexto(campos.value.fecha_fin))
-    html = html.replaceAll('{fecha_egreso_texto}', fechaATexto(campos.value.fecha_egreso))
-    html = html.replaceAll('{fecha_egreso_mes_texto}', mesAnioATexto(campos.value.fecha_egreso)) //rev
+
+
+    const lugarTexto = campos.value.lugar_especifico
+        ? `, ${campos.value.lugar_especifico}`
+        : ''
+    html = html.replaceAll('{lugar_texto}', lugarTexto)
+
     const comisionadoTexto = campos.value.sexo_destinatario === 'F' ? 'comisionada'
         : campos.value.sexo_destinatario === 'M' ? 'comisionado'
             : 'comisionado(a)'
@@ -346,6 +368,49 @@ const vistaPrevia = computed(() => {
         : ''
     html = html.replaceAll('{horario_texto}', horarioTexto)
     return html
+})
+
+const numeroOficioResuelto2 = ref('')
+const vistaPreviaSegundaIncidencia = computed(() => {
+    if (!combinarIncidencias.value || !plantilla.value?.cuerpo) return ''
+    const articuloC = campos.value.sexo_destinatario === 'F' ? 'la' : 'el'
+    const cuerpo = plantilla.value.cuerpo
+        .replaceAll('{articulo_c}', articuloC)
+        .replaceAll('{nombre_solicitante}', campos.value.nombre_solicitante || '')
+        .replaceAll('{motivo}', (motivo2.value || '').replaceAll('\n', '<br>'))
+
+    const jefe = buscarPorClave('jefe_depto')
+    const jefeRH = buscarDestinatarioPorClave('jefe_recursos_humanos')
+    const fechaTexto = fecha2.value ? fechaConBarras(fecha2.value) : 'DD/MM/AAAA'
+
+    return `
+        <div class="w-100 mb-3 pb-2 encabezado-doc">
+            <img src="${headerImgActual.value}" class="header-doc-img" alt="Encabezado Institucional SEP TecNM">
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+            <div class="texto-destinatario">
+                <strong>${jefeRH?.grado || ''} ${jefeRH?.nombre || ''}</strong><br>
+                <strong>${jefeRH?.puesto || ''}</strong>
+            </div>
+            <div class="text-end texto-encabezado">
+                ${CIUDAD_FECHA} <span class="fecha-resaltada">${fechaTexto}</span><br>
+                <strong>MEMORANDUM NO: ${formatearFolio(numeroOficioResuelto2.value, config.value?.folio.prefijo_default || 'P', config.value?.folio.anio || new Date().getFullYear())}</strong>
+            </div>
+        </div>
+        <div class="texto-cuerpo">${cuerpo}</div>
+        <div class="mt-4 texto-firma">
+            <strong class="atentamente-spaced">ATENTAMENTE</strong><br>
+            <div class="texto-lema">Excelencia en Educación Tecnológica®</div>
+            <div class="texto-lema-secundario">Cultura, Ciencia y Tecnología para la Superación de México®</div>
+            <br><br>
+            <strong>${jefe?.grado || ''} ${jefe?.nombre || ''}</strong><br>
+            <strong>${jefe?.puesto || ''}</strong><br>
+        </div>
+        ${notaCcp.value ? `<div class="texto-ccp-wrapper"><span class="texto-ccp">${notaCcp.value}</span></div>` : ''}
+        <div class="w-100 text-center pie-fijo" style="font-size: 10px; line-height: 1.3;">
+            <img src="${pieImgActual.value}" alt="Pie de página" class="pie-doc-img">
+        </div>
+    `
 })
 
 async function guardarEnHistorial() {
@@ -370,7 +435,8 @@ async function guardarEnHistorial() {
         }
 
         const htmlCompleto = document.querySelector('.documento-carta')?.innerHTML || vistaPrevia.value
-        const requiereAprobacion = subtipo.value === 'comision-externa'
+        const requiereAprobacion = subtipo.value === 'comision-externa' ||
+            (subtipo.value === 'comision-interna' && campos.value.para_jefe_depto)
         const usuarioActivo = getUsuarioActivo()
 
         // tipoRuta/subtipoGuardado/campos permiten reabrir para editar.
@@ -386,6 +452,7 @@ async function guardarEnHistorial() {
         }
 
         let documentoId = idEdicion
+        let datosCompletos = null
 
         if (idEdicion) {
             // El reseteo depende del tipo y quién edita (ver
@@ -438,7 +505,7 @@ async function guardarEnHistorial() {
                 // Jefe/Admin → directo a la Subdirectora.
                 estadoInicial = usuarioActivo?.rol !== 'admin' ? 'pendiente_jefeDepto' : 'pendiente_subdirectora'
             }
-            const creado = await agregarDocumento({
+            datosCompletos = {
                 ...datosDocumento,
                 creadoPor: usuarioActivo?.id,
                 estado: estadoInicial,
@@ -447,9 +514,20 @@ async function guardarEnHistorial() {
                 revisionJefeDepto: 'sin_revisar',
                 observacionJefeDepto: '',
                 solicitoRevision: false
-            })
+            }
+            const creado = await agregarDocumento(datosCompletos)
             documentoId = creado?.id
         }
+
+        // Solventación de Faltas con 2 incidencias: se guarda un
+        // segundo documento independiente, con su propio folio.
+        if (!idEdicion && combinarIncidencias.value && subtipo.value === 'memorandum-solventacion-faltas') {
+            const numeroOficio2 = await resolverNumeroFolio2()
+            numeroOficioResuelto2.value = numeroOficio2
+            await guardarSegundoYVincular(documentoId, datosCompletos, vistaPreviaSegundaIncidencia.value, numeroOficio2)
+        }
+
+        // Si viene de una tarea, se marca finalizada y se liga.
 
         // Si viene de una tarea, se marca finalizada y se liga.
         if (bitacoraId && documentoId) {
@@ -459,6 +537,7 @@ async function guardarEnHistorial() {
         documentoGuardado.value = true
         return true
     } catch (e) {
+        // console.error(e)
         alert('Error al generar el documento')
         return false
     } finally {
@@ -491,9 +570,12 @@ async function generarDocumento() {
     if (ok) avisarYRedirigir()
 }
 
+
+
 async function imprimirDocumento() {
     const ok = await guardarEnHistorial()
     if (ok) {
+
         // Imprimir antes de redirigir, o el navegador cierra el diálogo.
         window.print()
         avisarYRedirigir()
@@ -623,10 +705,7 @@ async function imprimirDocumento() {
                                         {{ p.nombre }} — {{ p.cargo || p.carrera }}
                                     </li>
                                 </ul>
-                                <div v-if="campos.grado_docente" class="form-text">
-                                    Grado: <strong>{{ campos.grado_docente }}</strong> (se toma del docente
-                                    seleccionado)
-                                </div>
+
                             </div>
 
 
@@ -638,23 +717,15 @@ async function imprimirDocumento() {
                             <!-- CURSO externa -->
                             <template v-if="subtipo === 'comision-externa'">
                                 <div class="mb-3">
-                                    <label class="form-label">Tipo de actividad <span
-                                            class="text-danger">*</span></label>
-                                    <select class="form-select" v-model="campos.tipo_actividad">
-                                        <option value="">Selecciona...</option>
-                                        <option value="Curso">Curso</option>
-                                        <option value="Curso-Taller">Curso-Taller</option>
-                                        <option value="Taller">Taller</option>
-                                        <option value="Congreso">Congreso</option>
-                                        <option value="Seminario">Seminario</option>
-                                        <option value="Diplomado">Diplomado</option>
-                                    </select>
+                                    <label class="form-label">Actividad <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" v-model="campos.tipo_actividad"
+                                        placeholder='Ej: Curso-Taller : "Nombre del curso"...'>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Nombre del {{ campos.tipo_actividad || 'curso' }} <span
-                                            class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" v-model="campos.nombre_curso"
-                                        :placeholder="'Nombre del ' + (campos.tipo_actividad || 'curso')">
+                                    <label class="form-label">Instalaciones / lugar específico <span
+                                            class="text-muted small">(opcional)</span></label>
+                                    <input type="text" class="form-control" v-model="campos.lugar_especifico"
+                                        placeholder="Ej: Instituto Tecnológico de Orizaba">
                                 </div>
                                 <div class="row g-2 mb-3">
                                     <div class="col">
@@ -671,11 +742,19 @@ async function imprimirDocumento() {
 
                             <!-- COMISIÓN  interna -->
                             <template v-if="subtipo === 'comision-interna'">
-                                <div class="mb-3">
-                                    <label class="form-label">Fecha del evento <span
-                                            class="text-danger">*</span></label>
-                                    <input type="date" class="form-control" v-model="campos.fecha">
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col">
+                                        <label class="form-label">Fecha inicio <span
+                                                class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" v-model="campos.fecha_inicio">
+                                    </div>
+                                    <div class="col">
+                                        <label class="form-label">Fecha fin <span class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" v-model="campos.fecha_fin">
+                                    </div>
                                 </div>
+
                                 <div class="mb-3">
                                     <label class="form-label">Lugar del evento <span
                                             class="text-danger">*</span></label>
@@ -687,6 +766,13 @@ async function imprimirDocumento() {
                                             class="text-danger">*</span></label>
                                     <textarea class="form-control" rows="3" v-model="campos.motivo"
                                         placeholder="Describe el motivo de la comisión..."></textarea>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="paraJefeDepto"
+                                        v-model="campos.para_jefe_depto">
+                                    <label class="form-check-label" for="paraJefeDepto">
+                                        Comisión para el Jefe de Depto.
+                                    </label>
                                 </div>
                             </template>
 
@@ -773,11 +859,45 @@ async function imprimirDocumento() {
                                 <input type="time" class="form-control" v-model="campos.hora_salida">
                             </div>
 
-                            <div class="mb-3" v-if="subtipo === 'memorandum-solventacion-faltas'">
-                                <label class="form-label">Motivo <span class="text-danger">*</span></label>
-                                <textarea class="form-control" rows="2" v-model="campos.motivo"
-                                    placeholder="Ej: se encontraba en asesorías con sus alumnos de residencias"></textarea>
-                            </div>
+                            <template v-if="subtipo === 'memorandum-solventacion-faltas'">
+                                <div class="mb-3">
+                                    <label class="form-label">Motivo <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" rows="2" v-model="campos.motivo"
+                                        placeholder="Ej: se encontraba en asesorías con sus alumnos de residencias"></textarea>
+                                </div>
+
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="combinarIncidencias"
+                                        v-model="combinarIncidencias">
+                                    <label class="form-check-label" for="combinarIncidencias">
+                                        Más de una incidencia (2)
+                                    </label>
+                                </div>
+
+                                <template v-if="combinarIncidencias">
+                                    <hr>
+                                    <p class="small text-muted mb-2">2ª incidencia</p>
+                                    <div class="mb-3">
+                                        <label class="form-label">Folio del oficio (2ª incidencia) <span
+                                                class="text-danger">*</span></label>
+                                        <SelectorFolio :folio-mostrado-texto="folioMostradoTexto2"
+                                            v-model:folio-seleccionado="folioSeleccionado2"
+                                            :reservados="reservadosConTexto2"
+                                            v-model:mostrar-reservados="mostrarReservados2" />
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Fecha del documento (2ª incidencia) <span
+                                                class="text-danger">*</span></label>
+                                        <input type="date" class="form-control" v-model="fecha2">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Motivo (2ª incidencia) <span
+                                                class="text-danger">*</span></label>
+                                        <textarea class="form-control" rows="2" v-model="motivo2"
+                                            placeholder="Ej: olvidó registrar su entrada"></textarea>
+                                    </div>
+                                </template>
+                            </template>
 
                             <NotaCcp v-model:destinos="campos.ccp_destinos" v-model:iniciales="campos.ccp_iniciales"
                                 :personas="personasJefeDeptoYElaboran" />
@@ -874,8 +994,7 @@ async function imprimirDocumento() {
                             <NotaCcp v-model:destinos="campos.ccp_destinos" v-model:iniciales="campos.ccp_iniciales"
                                 :personas="personasJefeDeptoYElaboran" />
 
-                            <button class="btn btn-primary w-100 mt-2" @click="generarDocumento"
-                                :disabled="cargando">
+                            <button class="btn btn-primary w-100 mt-2" @click="generarDocumento" :disabled="cargando">
                                 <span v-if="cargando" class="spinner-border spinner-border-sm me-2"></span>
                                 <i v-else class="bi bi-file-earmark-check me-2"></i>
                                 {{ cargando ? 'Generando...' : 'Generar Documento' }}
@@ -999,8 +1118,9 @@ async function imprimirDocumento() {
 
 
                         <div class="mb-3">
-                            <label class="form-label">Fecha de egreso <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" v-model="campos.fecha_egreso">
+                            <label class="form-label">Detalle <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" v-model="campos.detalle_egresado"
+                                placeholder='Ej: es egresado del Instituto Tecnológico de Chetumal...'>
                         </div>
 
                         <NotaCcp v-model:destinos="campos.ccp_destinos" v-model:iniciales="campos.ccp_iniciales"
@@ -1022,7 +1142,8 @@ async function imprimirDocumento() {
                                 v-model:folio-seleccionado="folioSeleccionado" :reservados="reservadosConTexto"
                                 v-model:mostrar-reservados="mostrarReservados" />
                             <div v-else class="input-group">
-                                <input type="text" class="form-control" v-model="campos.numero_oficio" placeholder="XXX">
+                                <input type="text" class="form-control" v-model="campos.numero_oficio"
+                                    placeholder="XXX">
                             </div>
                         </div>
                         <div class="mb-3">
@@ -1167,11 +1288,13 @@ async function imprimirDocumento() {
                     <h6 class="text-muted mb-3">
                         <i class="bi bi-eye me-2"></i>Vista previa
                     </h6>
-                    <div class="preview-scale-outer">
+                    <div class="preview-scale-outer"
+                        :class="{ 'combo-wrapper': combinarIncidencias && subtipo === 'memorandum-solventacion-faltas' }">
                         <div class="bg-white border rounded documento-carta">
                             <!-- Encabezado institucional -->
                             <div class="w-100 mb-3 pb-2  encabezado-doc " v-if="tipo !== 'mantenimiento'">
-                                <img :src="headerImg" class="header-doc-img" alt="Encabezado Institucional SEP TecNM">
+                                <img :src="headerImgActual" class="header-doc-img"
+                                    alt="Encabezado Institucional SEP TecNM">
                             </div>
 
 
@@ -1202,7 +1325,7 @@ async function imprimirDocumento() {
                                                 buscarDestinatarioPorClave('jefa_gestion_vinculacion')?.nombre
                                             }}</strong><br>
                                         <strong>{{ buscarDestinatarioPorClave('jefa_gestion_vinculacion')?.puesto
-                                            }}</strong><br>
+                                        }}</strong><br>
                                         <strong>PRESENTE</strong>
                                     </div>
                                 </template>
@@ -1210,18 +1333,20 @@ async function imprimirDocumento() {
 
                                 <!-- Encabezado memorándum -->
                                 <template v-else-if="tipo === 'memorandum'">
-                                    <div class="text-end mb-3 texto-encabezado">
-                                        {{ CIUDAD_FECHA }} <span class="fecha-resaltada">{{
-                                            campos.fecha_documento ?
-                                                fechaConBarras(campos.fecha_documento) : 'DD/MM/AAAA' }}</span><br>
-                                        <strong>MEMORANDUM NO: {{ numeroOficioCompleto() }}</strong>
-                                    </div>
-                                    <br>
-                                    <div class="mb-3 texto-destinatario">
-                                        <strong>{{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.grado }} {{
-                                            buscarDestinatarioPorClave('jefe_recursos_humanos')?.nombre }}</strong><br>
-                                        <strong>{{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.puesto
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <div class="texto-destinatario">
+                                            <strong>{{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.grado }}
+                                                {{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.nombre
+                                                }}</strong><br>
+                                            <strong>{{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.puesto
                                             }}</strong>
+                                        </div>
+                                        <div class="text-end texto-encabezado">
+                                            {{ CIUDAD_FECHA }} <span class="fecha-resaltada">{{
+                                                campos.fecha_documento ?
+                                                    fechaConBarras(campos.fecha_documento) : 'DD/MM/AAAA' }}</span><br>
+                                            <strong>MEMORANDUM NO: {{ numeroOficioCompleto() }}</strong>
+                                        </div>
                                     </div>
                                 </template>
 
@@ -1265,10 +1390,14 @@ async function imprimirDocumento() {
                                     <br>
 
                                     <br>
-                                    <template v-if="subtipo === 'comision-externa'">
-                                        <strong>{{ buscarPorClave('director')?.grado }} {{
-                                            buscarPorClave('director')?.nombre }}</strong><br>
-                                        <strong>{{ buscarPorClave('director')?.puesto }}</strong>
+                                    <template
+                                        v-if="subtipo === 'comision-externa' || (subtipo === 'comision-interna' && campos.para_jefe_depto)">
+                                        <strong>{{ buscarPorClave(subtipo === 'comision-interna' ? 'subdirectora' :
+                                            'director')?.grado }} {{
+                                                buscarPorClave(subtipo === 'comision-interna' ? 'subdirectora' :
+                                                    'director')?.nombre }}</strong><br>
+                                        <strong>{{ buscarPorClave(subtipo === 'comision-interna' ? 'subdirectora' :
+                                            'director')?.puesto }}</strong>
                                         <br>
                                     </template>
                                     <template v-else>
@@ -1283,6 +1412,9 @@ async function imprimirDocumento() {
                                     <span class="texto-ccp" v-html="notaCcp"></span>
                                 </div>
                             </div>
+
+
+
 
                             <!-- Vista previa Liberación de Proyecto -->
                             <div v-else-if="tipo === 'liberacion-proyecto'">
@@ -1303,11 +1435,12 @@ async function imprimirDocumento() {
                                     <strong>{{ buscarDestinatarioPorClave('jefa_division_estudios')?.grado }} {{
                                         buscarDestinatarioPorClave('jefa_division_estudios')?.nombre }}</strong><br>
                                     <strong>{{ buscarDestinatarioPorClave('jefa_division_estudios')?.puesto
-                                        }}</strong><br>
+                                    }}</strong><br>
                                     <strong>PRESENTE</strong>
                                 </div>
                                 <p class="mb-3 texto-cuerpo">
-                                    Por este medio informo que ha sido liberado el siguiente proyecto para la titulación
+                                    Por este medio informo que ha sido liberado el siguiente proyecto para la
+                                    titulación
                                     integral:
                                 </p>
                                 <table class="texto-cuerpo"
@@ -1315,7 +1448,8 @@ async function imprimirDocumento() {
                                     <tr>
                                         <td class="doc-celda" style="width:40%;"><strong>Nombre del estudiante y/o
                                                 egresado:</strong></td>
-                                        <td class="doc-celda">{{ (campos.nombre_estudiante || '—').toUpperCase() }}</td>
+                                        <td class="doc-celda">{{ (campos.nombre_estudiante || '—').toUpperCase() }}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td class="doc-celda"><strong>Carrera:</strong></td>
@@ -1327,7 +1461,8 @@ async function imprimirDocumento() {
                                     </tr>
                                     <tr>
                                         <td class="doc-celda"><strong>Nombre del proyecto:</strong></td>
-                                        <td class="doc-celda">{{ (campos.nombre_proyecto || '—').toUpperCase() }}</td>
+                                        <td class="doc-celda">{{ (campos.nombre_proyecto || '—').toUpperCase() }}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td class="doc-celda"><strong>Producto:</strong></td>
@@ -1384,18 +1519,20 @@ async function imprimirDocumento() {
                                             <img src="/src/assets/images/itch.png" alt="LOGO"
                                                 style="max-width:100%; max-height:140px;" />
                                         </td>
+
                                         <td rowspan="2" class="doc-celda-iso" style="width:55%; vertical-align:top;">
-                                            <strong>Nombre del Documento:</strong> Formato para Solicitud de
-                                            Mantenimiento
-                                            Correctivo y/o Preventivo Interno o Externo
+                                            <strong>Nombre del Documento:</strong> {{
+                                                plantilla?.encabezadoIso?.nombreDocumento ||
+                                                "Formato para Solicitud de Mantenimiento Correctivo y/o Preventivo Interno o Externo" }}
                                         </td>
                                         <td class="doc-celda-iso" style="width:30%;">
-                                            <strong>Fecha de Aprobación:</strong> 22 noviembre 2022
+                                            <strong>Fecha de Aprobación:</strong> {{
+                                                plantilla?.encabezadoIso?.fechaAprobacion || '22 noviembre 2022' }}
                                         </td>
                                     </tr>
                                     <tr>
                                         <td class="doc-celda-iso">
-                                            <strong>Revisión:</strong> 4
+                                            <strong>Revisión:</strong> {{ plantilla?.encabezadoIso?.revision || '4' }}
                                         </td>
                                     </tr>
                                     <tr>
@@ -1405,19 +1542,19 @@ async function imprimirDocumento() {
                                                     <td class="texto-ccp"
                                                         style="width:50%; border-right:1px solid #000; padding:4px; vertical-align:top;">
                                                         <strong>Sistema Integral de Gestión:</strong><br>
-                                                        ISO 9001:2015<br>
-                                                        ISO 14001:2015<br>
-                                                        ISO 45001:2018
+                                                        <span
+                                                            v-html="plantilla?.encabezadoIso?.sistemaGestion || 'ISO 9001:2015<br>ISO 14001:2015<br>ISO 45001:2018'"></span>
                                                     </td>
                                                     <td class="texto-ccp"
                                                         style="width:50%; padding:4px; vertical-align:top;">
                                                         <strong>Referencia a la Norma:</strong><br>
-                                                        ISO 9001:2015: 7.1.3<br>
-                                                        ISO 14001:2015: 8.1
+                                                        <span
+                                                            v-html="plantilla?.encabezadoIso?.referenciaNorma || 'ISO 9001:2015: 7.1.3<br>ISO 14001:2015: 8.1'"></span>
                                                     </td>
                                                 </tr>
                                             </table>
                                         </td>
+
                                         <td class="doc-celda-iso" style="vertical-align:middle;">
                                             <strong>Página 1 de 1</strong>
                                         </td>
@@ -1543,10 +1680,18 @@ async function imprimirDocumento() {
 
                             <div v-if="plantilla && tipo !== 'mantenimiento'" class="w-100 text-center pie-fijo"
                                 style="font-size: 10px; line-height: 1.3;">
-                                <img :src="pieImg" alt="Pie de página" class="pie-doc-img">
+                                <img :src="pieImgActual" alt="Pie de página" class="pie-doc-img">
                             </div>
                         </div>
+                        <div v-if="combinarIncidencias && subtipo === 'memorandum-solventacion-faltas'"
+                            class="bg-white border rounded documento-carta combo-segunda-incidencia"
+                            v-html="vistaPreviaSegundaIncidencia">
+                        </div>
+
+
                     </div>
+
+
 
                     <div class="d-flex gap-2 mt-3" v-if="plantilla">
                         <button class="btn btn-success btn-sm" @click="imprimirDocumento">

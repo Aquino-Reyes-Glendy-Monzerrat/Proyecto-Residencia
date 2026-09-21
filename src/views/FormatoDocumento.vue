@@ -1,11 +1,14 @@
 <script setup>
 import AdminLayout from '../layout/AdminLayout.vue'
 import { ref, watch, onMounted } from 'vue'
-import { getConfiguracion, actualizarConfiguracion } from '../services/api.js'
-import headerImg from '@/assets/images/logo-encabezado.png'
-import pieImg from '@/assets/images/pie.png'
+import { getConfiguracion, actualizarConfiguracion, getFuentes } from '../services/api.js'
+import { useImagenesDocumento } from '../composables/useImagenesDocumento.js'
+
+
 
 const config = ref(null)
+const { headerImgActual, pieImgActual } = useImagenesDocumento(config)
+const fuentes = ref([])
 const cargando = ref(true)
 const guardando = ref(false)
 
@@ -30,6 +33,7 @@ function aplicarVariablesDocumento(estilo) {
 
 onMounted(async () => {
     config.value = await getConfiguracion()
+    fuentes.value = await getFuentes()
     cargando.value = false
     aplicarVariablesDocumento(config.value.estilo)
 })
@@ -42,6 +46,26 @@ watch(() => config.value?.estilo, (nuevoEstilo) => {
 function imprimir() {
     window.print()
 }
+
+// Convierte la imagen elegida a texto (base64) y la guarda en la
+// configuración compartida — así Secretaria/Apoyo la ven igual, sin
+// necesitar un servidor de archivos todavía.
+function subirImagen(evento, campo) {
+    const archivo = evento.target.files[0]
+    if (!archivo) return
+    if (archivo.size > 500 * 1024) {
+        if (!confirm('Esta imagen pesa más de 500 KB — puede hacer más lenta la app. ¿Usarla de todos modos?')) {
+            evento.target.value = ''
+            return
+        }
+    }
+    const lector = new FileReader()
+    lector.onload = () => {
+        config.value.estilo[campo] = lector.result
+    }
+    lector.readAsDataURL(archivo)
+}
+
 
 async function guardar() {
     guardando.value = true
@@ -69,15 +93,39 @@ async function guardar() {
                         <div class="panel p-4">
                             <h5 class="mb-3"><i class="bi bi-fonts me-2"></i>Tipografía y márgenes</h5>
 
+
+
                             <div class="mb-3">
                                 <label class="form-label">Fuente</label>
 
-                                <select class="form-select" v-model="config.estilo.fuente" disabled>
-                                    <option value="'Noto Sans', Arial, sans-serif">Noto Sans
+                                <select class="form-select" v-model="config.estilo.fuente">
+                                    <option v-for="f in fuentes" :key="f.id" :value="f.valor">{{ f.etiqueta }}
                                     </option>
                                 </select>
-                                <div class="form-text">Tipografía definida por el manual de identidad gráfica del
-                                    TecNM</div>
+                                <div class="form-text">Noto Sans (tipografía oficial del manual de identidad
+                                    gráfica del TecNM)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Logo del encabezado</label>
+                                <input type="file" accept="image/*" class="form-control"
+                                    @change="subirImagen($event, 'headerImgBase64')">
+                                <div v-if="config.estilo.headerImgBase64" class="mt-2 d-flex align-items-center gap-2">
+                                    <img :src="config.estilo.headerImgBase64" style="max-height:60px;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                        @click="config.estilo.headerImgBase64 = null">Quitar</button>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Logo del pie de página</label>
+                                <input type="file" accept="image/*" class="form-control"
+                                    @change="subirImagen($event, 'pieImgBase64')">
+                                <div v-if="config.estilo.pieImgBase64" class="mt-2 d-flex align-items-center gap-2">
+                                    <img :src="config.estilo.pieImgBase64" style="max-height:60px;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                        @click="config.estilo.pieImgBase64 = null">Quitar</button>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -181,7 +229,7 @@ async function guardar() {
                                 <div class="bg-white border rounded documento-carta">
 
                                     <div class="w-100 mb-3 pb-2">
-                                        <img :src="headerImg" alt="Encabezado Institucional SEP TecNM"
+                                        <img :src="headerImgActual" alt="Encabezado Institucional SEP TecNM"
                                             class="header-doc-img">
                                     </div>
 
@@ -235,7 +283,7 @@ async function guardar() {
                                     </div>
 
                                     <div class="w-100 text-center pie-fijo">
-                                        <img :src="pieImg" alt="Pie de página" class="pie-doc-img">
+                                        <img :src="pieImgActual" alt="Pie de página" class="pie-doc-img">
                                     </div>
                                 </div>
                             </div>
