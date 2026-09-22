@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:3000'
+//const BASE_URL = 'http://localhost:3000'
+
+//para conectar con render
+const BASE_URL = 'https://proyecto-residencia.onrender.com'
 
 // ─── USUARIOS ───
 export async function getUsuarios() {
