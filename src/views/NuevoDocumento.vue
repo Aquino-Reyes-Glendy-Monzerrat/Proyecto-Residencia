@@ -35,6 +35,11 @@ import FormularioTutorias from '@/components/Documentos/tutorias/FormularioTutor
 import FormularioOtros from '@/components/Documentos/otros/FormularioOtros.vue'
 import TipoServicioMantenimiento from '@/components/Documentos/mantenimiento/TipoServicioMantenimiento.vue'
 import FormularioMantenimiento from '@/components/Documentos/mantenimiento/FormularioMantenimiento.vue'
+
+import FormularioConstanciaTutorado from '@/components/Documentos/alumnos/FormularioConstanciaTutorado.vue'
+import VistaConstanciaTutorado from '@/components/Documentos/alumnos/VistaConstanciaTutorado.vue'
+import { encabezadoDependenciaHTML, destinatarioHTML } from '@/utils/encabezadoOficio.js'
+
 import { enCorreccion } from '@/utils/estadoDocumento.js'
 import { fotoDeEstilo, estiloDe, variablesDeEstilo } from '@/utils/estiloDocumento.js'
 import { fechaConBarras, fechaHoy } from '@/utils/fechas.js'
@@ -283,6 +288,7 @@ const TIPOS_FOLIO_GENERAL = [
     'comision', 'liberacion-proyecto',
     'aceptacion', 'terminacion',
     'revision-tesis', 'otros', 'mantenimiento',
+    'constancia-tutorado',
 ]
 const categoriaFolio = computed(() => {
     if (TIPOS_FOLIO_GENERAL.includes(tipo)) return 'general'
@@ -344,7 +350,7 @@ onMounted(async () => {
 })
 
 
-const tiposAlumno = ['aceptacion', 'terminacion', 'liberacion-proyecto']
+const tiposAlumno = ['aceptacion', 'terminacion', 'liberacion-proyecto', 'constancia-tutorado']
 
 async function buscarEnBD(query) {
     if (query.length < 2) {
@@ -390,6 +396,19 @@ const notaCcp = computed(() => {
 
     return lineas.map(l => `<div>${l}</div>`).join('')
 })
+
+
+// Tutorías: encabezado y destinatario iguales a los que arma la vista
+// Tutorías (utils/encabezadoOficio.js), para que al editar se vea igual.
+const encabezadoTutorias = computed(() => encabezadoDependenciaHTML({
+    oficio: numeroOficioCompleto(),
+    fecha: campos.value.fecha_documento,
+    asunto: plantilla.value?.asunto,
+}))
+const destinatarioTutorias = computed(() => destinatarioHTML([
+    `${campos.value.grado_docente ? campos.value.grado_docente + ' ' : ''}${(campos.value.nombre_destinatario || '').toUpperCase()}`,
+    'DOCENTE DE ESTE INSTITUTO',
+], 'P R E S E N T E.'))
 
 
 function numeroOficioCompleto() {
@@ -665,6 +684,11 @@ function debeFirmarDocumentoAhora() {
         return false
     }
 
+    // para generar constnacia y no marque mensaje de rrro por haora
+    if (tipo === 'constancia-tutorado') {
+        return false
+    }
+
     // Todos los demás documentos conservan
     // su funcionamiento actual.
     return true
@@ -738,7 +762,7 @@ async function imprimirDocumento() {
 
         await nextTick()
 
-        window.print()
+        imprimirConNombre(subtipo.value || tipo, campos.value)  //no quitar ,es para  guardar el doc con nombre
 
         avisarYRedirigir()
         
@@ -908,6 +932,22 @@ async function imprimirDocumento() {
                             @generar="generarDocumento" />
                     </template>
 
+                                        <!-- ──constancia creditos tuto ── -->
+                    <template v-else-if="tipo === 'constancia-tutorado'">
+                        <DatosDocumento :campos="campos" :id-edicion="idEdicion"
+                            :folio-mostrado-texto="folioMostradoTexto" :reservados-con-texto="reservadosConTexto"
+                            v-model:folio-seleccionado="folioSeleccionado"
+                            v-model:mostrar-reservados="mostrarReservados" />
+                        <BuscarAlumno v-model:busqueda-persona="busquedaPersona" :sugerencias="sugerencias"
+                            :mostrar-sugerencias="mostrarSugerencias" @buscar="buscarEnBD"
+                            @seleccionar="seleccionarPersona" />
+                        <DatosAlumnoDocumento :campos="campos" />
+                        <FormularioConstanciaTutorado :campos="campos" :lista-docentes="listaDocentes"
+                            :jefe="buscarPorClave('jefe_depto')" />
+                        <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
+                            @generar="generarDocumento" />
+                    </template>
+
                     <!-- ── OTROS ── -->
                     <template v-else-if="tipo === 'otros'">
                         <DatosDocumento :campos="campos" :id-edicion="idEdicion"
@@ -959,7 +999,7 @@ async function imprimirDocumento() {
 
                             <!-- Vista previa normal -->
 
-                            <div v-if="plantilla && tipo !== 'liberacion-proyecto' && tipo !== 'mantenimiento'">
+        <div v-if="plantilla && tipo !== 'liberacion-proyecto' && tipo !== 'mantenimiento' && tipo !== 'constancia-tutorado'">
 
                                 <!-- Encabezado alumnos (residencia y SS) -->
                                 <template v-if="tipo === 'aceptacion' || tipo === 'terminacion'">
@@ -1006,6 +1046,12 @@ async function imprimirDocumento() {
                                             <strong>MEMORANDUM NO: {{ numeroOficioCompleto() }}</strong>
                                         </div>
                                     </div>
+                                </template>
+
+                                <!-- Encabezado Tutorías (igual al que genera la vista Tutorías) -->
+                                <template v-else-if="tipo === 'tutorias'">
+                                    <div v-html="encabezadoTutorias"></div>
+                                    <div v-html="destinatarioTutorias"></div>
                                 </template>
 
                                 <!-- Encabezado comisión, revisión tesis, otros -->
@@ -1070,6 +1116,13 @@ async function imprimirDocumento() {
                                     <span class="texto-ccp" v-html="notaCcp"></span>
                                 </div>
                             </div>
+
+                            <!-- Vista previa Constancia de tutorado -->
+                            <VistaConstanciaTutorado v-else-if="plantilla && tipo === 'constancia-tutorado'"
+                                :campos="campos" :cuerpo="vistaPrevia" :oficio="numeroOficioCompleto()"
+                                :asunto="plantilla?.asunto"
+                                :destinatario="buscarDestinatarioPorClave('jefa_servicios_escolares')"
+                                :jefe="buscarPorClave('jefe_depto')" :nota-ccp="notaCcp" />
 
 
                             <!-- Vista previa Liberación de Proyecto -->

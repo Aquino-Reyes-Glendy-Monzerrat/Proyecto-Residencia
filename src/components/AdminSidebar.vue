@@ -67,16 +67,10 @@ const { usuarioActivo: usuario } = useSesion()
                 <span class="nav-text">Formato Documento</span>
             </RouterLink>
 
-            <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/firmantes"
+            <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/firmantes-destinatarios"
                 active-class="active">
-                <span class="nav-icon"><i class="bi bi-pencil"></i></span>
-                <span class="nav-text">Firmantes</span>
-            </RouterLink>
-
-            <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/destinatarios"
-                active-class="active">
-                <span class="nav-icon"><i class="bi bi-envelope-arrow-up"></i></span>
-                <span class="nav-text">Destinatarios</span>
+                <span class="nav-icon"><i class="bi bi-vector-pen"></i></span>
+                <span class="nav-text">Firmantes y destinatarios</span>
             </RouterLink>
 
             <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/docentes" active-class="active">
@@ -92,7 +86,7 @@ const { usuarioActivo: usuario } = useSesion()
 
             <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/catalogo" active-class="active">
                 <span class="nav-icon"><i class="bi bi-bookmark-star"></i></span>
-                <span class="nav-text">Catalogo</span>
+                <span class="nav-text">Catálogo</span>
             </RouterLink>
 
             <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/usuarios" active-class="active">

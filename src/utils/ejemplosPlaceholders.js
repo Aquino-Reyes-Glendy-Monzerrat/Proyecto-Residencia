@@ -33,6 +33,11 @@ export const EJEMPLOS_CAMPOS = {
         "del 10 al 13 de mayo de 2026 (si es un solo día: el 15 de agosto de 2026)",
     texto_libre: "texto libre de ejemplo",
     tipo_actividad: "al Curso de Ciencia de Datos",
+    nombrado_texto: "nombrado(a)",
+    grupos_carrera: "del grupo K2U de la carrera INGENIERÍA EN TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIONES",
+    nombre_jefe_depto: "DR. MANUEL ABRAHAM ZAPATA ENCALADA",
+    periodo_escolar_texto: "enero-junio 2026",
+    fecha_letras: "a los seis días del mes de enero de 2026",
 };
 
 export const EJEMPLOS_POR_PLANTILLA = {
@@ -44,3 +49,4 @@ export const EJEMPLOS_POR_PLANTILLA = {
         motivo: "se encontraba en asesorías con sus alumnos de residencias",
     },
 };
+

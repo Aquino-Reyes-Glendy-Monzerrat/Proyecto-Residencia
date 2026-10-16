@@ -10,8 +10,7 @@ import NuevoDocumento from "@/views/NuevoDocumento.vue";
 import EditarPlantillaDetalle from "@/views/EditarPlantillaDetalle.vue";
 import FormatoDocumento from "@/views/FormatoDocumento.vue";
 import VerDocumento from "@/views/VerDocumento.vue";
-import Firmantes from "@/views/Firmantes.vue";
-import Destinatarios from "@/views/Destinatarios.vue";
+import FirmantesDestinatarios from "@/views/Firmantesdestinatarios.vue";
 import FolioNumeracion from "@/views/FolioNumeracion.vue";
 import Catalogo from "@/views/Catalogo.vue";
 import Docentes from "@/views/Docentes.vue";
@@ -47,8 +46,9 @@ const routes = [
     { path: "/editarPlantilla", name: "editarPlantilla", component: EditarPlantilla },
     { path: "/editar-plantilla/:tipo", name: "editar-plantilla-detalle", component: EditarPlantillaDetalle },
     { path: "/formatodoc", name: "formatodoc", component: FormatoDocumento },
-    { path: "/firmantes", name: "firmantes", component: Firmantes },
-    { path: "/destinatarios", name: "destinatarios", component: Destinatarios },
+    { path: "/firmantes-destinatarios", name: "firmantes-destinatarios", component: FirmantesDestinatarios },
+    { path: "/firmantes", redirect: "/firmantes-destinatarios" },
+    { path: "/destinatarios", redirect: "/firmantes-destinatarios" },
     { path: "/docentes", name: "docentes", component: Docentes },
     { path: "/folionumeracion", name: "folionumeracion", component: FolioNumeracion },
     { path: "/catalogo", name: "catalogo", component: Catalogo },

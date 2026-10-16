@@ -5,14 +5,14 @@ import { useRoute, useRouter } from 'vue-router'
 import {
     getDocentes, getGruposTutoria, agregarGrupoTutoria,
     actualizarGrupoTutoria, eliminarGrupoTutoria, agregarDocumento,
-    getPlantilla, getFirmantes, getConfiguracion, getDocumentos, actualizarDocumento, consumirSiguienteFolio, eliminarDocumento
+    getPlantilla, getFirmantes, getConfiguracion, getDocumentos, actualizarDocumento, consumirSiguienteFolio, actualizarConfiguracion
 } from '../services/api.js'
 
 import { useImagenesDocumento } from '../composables/useImagenesDocumento.js'
 
 import { useSesion } from '../composables/UseSesion.js'
-import { formatearFolio, imprimirConTitulo, rellenarFolio } from '@/utils/folio.js'
-import { fotoDeEstilo, estiloDe, variablesDeEstilo } from '@/utils/estiloDocumento.js'
+import { formatearFolio } from '@/utils/folio.js'
+import { fotoDeEstilo } from '@/utils/estiloDocumento.js'
 
 import {
     PERIODOS, claveGrupo, compararGrupos, periodoDeFecha, periodoDeQuery, siguientePeriodo, etiquetaPeriodo,
@@ -21,6 +21,9 @@ import {
 
 import { fechaConBarras, fechaHoy } from '@/utils/fechas.js'
 import { useFirmasDocumento } from '../composables/useFirmasDocumento.js'
+import { encabezadoDependenciaHTML, destinatarioHTML, ccpHTML } from '@/utils/encabezadoOficio.js'
+import { gruposConCarreraTexto } from '@/utils/carreras.js'
+import ImpresionOficiosTutorias from '@/components/Documentos/tutorias/ImpresionOficiosTutorias.vue'
 
 const { usuarioActivo } = useSesion()
 
@@ -175,8 +178,8 @@ function gruposDeDocente(docenteId) {
 const gruposFiltrados = computed(() => {
     let lista = gruposDelPeriodo.value
     if (carreraFiltro.value !== 'TODAS') lista = lista.filter(g => g.carrera === carreraFiltro.value)
-        return [...lista].sort(compararGrupos)
-    
+    return [...lista].sort(compararGrupos)
+
 })
 
 // Vista "Todas": cada carrera ocupa su propia franja, sin mezclarse.
@@ -187,8 +190,8 @@ const gruposPorCarreraParaTodas = computed(() => {
             carrera: key,
             grupos: gruposDelPeriodo.value
                 .filter(g => g.carrera === key)
-                .sort(compararGrupos)        
-            }))
+                .sort(compararGrupos)
+        }))
         .filter(x => x.grupos.length > 0)
 })
 
@@ -444,41 +447,24 @@ function textoSegunSexo(sexo, masculino, femenino, generico) {
     return generico
 }
 
-function construirCuerpoHTML(docente, listaTexto, fechaDocumento, numeroOficio, cantidadGrupos) {
-    const fechaTexto = fechaConBarras(fechaDocumento)
+// Oficio de Tutorías c
+function construirCuerpoHTML(docente, campos, fechaDocumento, numeroOficio) {
     const anio = config.value?.folio?.anio || new Date().getFullYear()
     const prefijo = config.value?.folio?.prefijo_default || 'P'
-    const oficioCompleto = formatearFolio(numeroOficio, prefijo, anio)
     const jefeDepto = listaFirmantes.value.find(p => p.clave === 'jefe_depto')
+    const gradoDoc = docente?.abreviatura ? docente.abreviatura + ' ' : ''
     const nombreDoc = (docente?.nombre || '').toUpperCase()
-    const gradoDoc = docente?.abreviatura || ''
-    const asignadoTexto = textoSegunSexo(docente?.sexo, 'asignado', 'asignada', 'asignado(a)')
-    const tutorTexto = textoSegunSexo(docente?.sexo, 'tutor', 'tutora', 'tutor(a)')
-    // Singular/plural según cuántos grupos, en vez de una frase
-    // genérica forzada.
-    const grupoOGrupos = cantidadGrupos === 1 ? 'el siguiente grupo' : 'los siguientes grupos'
-    // El periodo lleva SU año ("Enero - Junio de 2027"), no el del folio.
-    const periodoConAnio = etiquetaPeriodo(periodoActual.value, anioActual.value)
 
     let cuerpoTexto = plantillaTutorias.value?.cuerpo || ''
-    cuerpoTexto = cuerpoTexto
-        .replaceAll('{periodo_texto}', periodoConAnio)
-        .replaceAll('{lista_grupos}', listaTexto)
-        .replaceAll('{asignado_texto}', asignadoTexto)
-        .replaceAll('{tutor_texto}', tutorTexto)
-        .replaceAll('{grupo_o_grupos}', grupoOGrupos)
+    for (const [clave, valor] of Object.entries(campos)) {
+        if (typeof valor === 'string') cuerpoTexto = cuerpoTexto.replaceAll(`{${clave}}`, valor)
+    }
 
     return `<div class="w-100 mb-3 pb-2 encabezado-doc">
     <img src="${headerImgActual.value}" class="header-doc-img" alt="Encabezado Institucional SEP TecNM">
 </div>
-<div class="text-end mb-3 texto-encabezado">
-    ${CIUDAD_FECHA} <span class="fecha-resaltada">${fechaTexto}</span><br>
-    Oficio No. ${oficioCompleto}
-</div>
-<div class="mb-3 texto-destinatario">
-    <strong>${gradoDoc ? gradoDoc + ' ' : ''}${nombreDoc}</strong><br>
-    <strong>PRESENTE</strong>
-</div>
+${encabezadoDependenciaHTML({ oficio: formatearFolio(numeroOficio, prefijo, anio), fecha: fechaDocumento, asunto: plantillaTutorias.value?.asunto })}
+${destinatarioHTML([gradoDoc + nombreDoc, 'DOCENTE DE ESTE INSTITUTO'], 'P R E S E N T E.')}
 <div class="texto-cuerpo">${cuerpoTexto}</div>
 <div class="mt-4 texto-firma">
     <strong class="atentamente-spaced">ATENTAMENTE</strong><br>
@@ -488,6 +474,7 @@ function construirCuerpoHTML(docente, listaTexto, fechaDocumento, numeroOficio, 
     <strong>${jefeDepto?.grado || ''} ${jefeDepto?.nombre || ''}</strong><br>
     <strong>${jefeDepto?.puesto || ''}</strong>
 </div>
+${ccpHTML(campos.ccp_destinos)}
 <div class="w-100 text-center pie-fijo" style="font-size: 10px; line-height: 1.3;">
     <img src="${pieImgActual.value}" alt="Pie de página" class="pie-doc-img">
 </div>`
@@ -515,7 +502,7 @@ async function generarDocumentos() {
     const todosLosDocs = await getDocumentos()
     const existentesPorDocente = {}
     todosLosDocs
-        .filter(d => d.tipo === 'tutorias' && d.docenteId
+    .filter(d => d.tipo === 'tutorias' && d.docenteId && d.estado !== 'cancelado'
             && esDelPeriodo(d.campos?.periodo, d.campos?.anio_periodo, seleccion.value, anioSinDato.value))
         .forEach(d => { existentesPorDocente[d.docenteId] = d })
 
@@ -527,10 +514,10 @@ async function generarDocumentos() {
     if (!confirm(`Vas a generar los documentos de ${Object.keys(porDocente).length} docente(s) con grupos asignados en este periodo.\n\nSi un docente no tuvo cambios, su documento actual no se toca.\nSi cambió su lista de grupos, se actualiza ese documento.\nSi es nuevo, se crea uno.\n\n¿Continuar?`)) return
 
     generando.value = true
-    const hoy = fechaHoy() 
+    const hoy = fechaHoy()
     let creados = 0, actualizados = 0, sinCambios = 0
 
-       // Los folios se reparten en orden de grupo, no en el orden en que se
+    // Los folios se reparten en orden de grupo, no en el orden en que se
     // asignaron los tutores: cada docente se acomoda por su grupo más
     // bajo (I1A antes que I3A, ISIC antes que ITIC). Así, al imprimir por
     // folio, también quedan en orden de grupo.
@@ -543,8 +530,12 @@ async function generarDocumentos() {
         const susGrupos = porDocente[docenteId]
         const listaTexto = susGrupos.map(g => g.clave).join(', ')
         const existente = existentesPorDocente[docenteId]
-
-        if (existente && existente.campos?.lista_grupos === listaTexto) {
+        
+        // "Sin cambios" = mismos grupos Y mismo nombre/grado (si se corrigió
+        // el docente en el catálogo, su oficio se actualiza al regenerar).
+        const mismoDocente = existente?.campos?.nombre_destinatario === (docente?.nombre?.toUpperCase() || '')
+            && existente?.campos?.grado_docente === (docente?.abreviatura || '')
+        if (existente && existente.campos?.lista_grupos === listaTexto && mismoDocente) {
             sinCambios++
             continue
         }
@@ -557,89 +548,94 @@ async function generarDocumentos() {
             periodo_texto: etiquetaPeriodo(periodoActual.value, anioActual.value),
             lista_grupos: listaTexto,
             asignado_texto: textoSegunSexo(docente?.sexo, 'asignado', 'asignada', 'asignado(a)'),
-            tutor_texto: textoSegunSexo(docente?.sexo, 'tutor', 'tutora', 'tutor(a)'),
+            tutor_texto: textoSegunSexo(docente?.sexo, 'Tutor', 'Tutora', 'Tutor(a)'),
+            nombrado_texto: textoSegunSexo(docente?.sexo, 'nombrado', 'nombrada', 'nombrado(a)'),
+            grupos_carrera: gruposConCarreraTexto(susGrupos),
+            ccp_destinos: [...(plantillaTutorias.value?.ccp || [])],
         }
 
-     if (existente) {
-    // Cambió su lista — se actualiza el mismo documento,
-    // conservando fecha y número de oficio ya asignados.
-    const fechaConservada = existente.campos?.fecha_documento || hoy
-    const oficioConservado = existente.campos?.numero_oficio
+        if (existente) {
+            // Cambió su lista — se actualiza el mismo documento,
+            // conservando fecha y número de oficio ya asignados.
+            const fechaConservada = existente.campos?.fecha_documento || hoy
+            const oficioConservado = existente.campos?.numero_oficio
 
-    const cuerpoNuevo = construirCuerpoHTML(docente,listaTexto,fechaConservada,oficioConservado,susGrupos.length)
-    await actualizarDocumento(existente.id, {
-        cuerpo: cuerpoNuevo,
+            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, fechaConservada, oficioConservado)
+            await actualizarDocumento(existente.id, {
+                cuerpo: cuerpoNuevo,
 
-        campos: {
-            ...existente.campos,
-            ...camposNuevos
-        },
+                campos: {
+                    ...existente.campos,
+                    ...camposNuevos
+                },
 
-        estado: 'generado',
+                estado: 'generado',
 
-        firmaElectronica: '',
-        rutaDocumentoFirmado: '',
-        driveFileId: '',
-        autorizadoPor: '',
-        fechaAutorizacion: ''
-    })
+                firmaElectronica: '',
+                rutaDocumentoFirmado: '',
+                driveFileId: '',
+                autorizadoPor: '',
+                fechaAutorizacion: ''
+            })
 
-    const documentoParaFirmar = {
-        ...existente,
+            const documentoParaFirmar = {
+                ...existente,
 
-        cuerpo: cuerpoNuevo,
+                cuerpo: cuerpoNuevo,
 
-        campos: {
-            ...existente.campos,
-            ...camposNuevos
+                campos: {
+                    ...existente.campos,
+                    ...camposNuevos
+                }
+            }
+
+            camposFirmaTutorias.value = {
+                ...documentoParaFirmar.campos
+            }
+
+            await firmarYSubirDocumentoEspecial(documentoParaFirmar.id, documentoParaFirmar.cuerpo)
+            actualizados++
+
+        } else {
+
+            // Documento nuevo
+            const { numero: numeroOficio } = await consumirSiguienteFolio('general')
+
+            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, hoy, numeroOficio)
+            const documentoCreado = await agregarDocumento({
+                tipo: 'tutorias',
+                tipoRuta: 'tutorias',
+                docenteId: docente.id,
+                // Si el lote del periodo ya está compartido, el nuevo también.
+                visibleParaSecretaria: loteCompartido.value,
+
+                cuerpo: cuerpoNuevo,
+
+                estado: 'generado',
+
+                campos: {
+                    ...camposNuevos,
+                    numero_oficio: numeroOficio,
+                    fecha_documento: hoy
+                },
+
+                estilo: fotoDeEstilo(config.value?.estilo),
+
+                firmaElectronica: '',
+                rutaDocumentoFirmado: '',
+                driveFileId: '',
+                autorizadoPor: '',
+                fechaAutorizacion: ''
+            })
+
+            camposFirmaTutorias.value = {
+                ...documentoCreado.campos
+            }
+
+            await firmarYSubirDocumentoEspecial(documentoCreado.id, documentoCreado.cuerpo)
+
+            creados++
         }
-    }
-
-    camposFirmaTutorias.value = {
-        ...documentoParaFirmar.campos
-    }
-
-    await firmarYSubirDocumentoEspecial(documentoParaFirmar.id,documentoParaFirmar.cuerpo)
-    actualizados++
-
-} else {
-
-    // Documento nuevo
-    const numeroOficio = await consumirSiguienteFolio('general')
-
-    const cuerpoNuevo = construirCuerpoHTML(docente,listaTexto,hoy,numeroOficio,susGrupos.length)
-    const documentoCreado = await agregarDocumento({
-        tipo: 'tutorias',
-        tipoRuta: 'tutorias',
-        docenteId: docente.id,
-
-        cuerpo: cuerpoNuevo,
-
-        estado: 'generado',
-
-        campos: {
-            ...camposNuevos,
-            numero_oficio: numeroOficio,
-            fecha_documento: hoy
-        },
-
-        estilo: fotoDeEstilo(config.value?.estilo),
-
-        firmaElectronica: '',
-        rutaDocumentoFirmado: '',
-        driveFileId: '',
-        autorizadoPor: '',
-        fechaAutorizacion: ''
-    })
-
-    camposFirmaTutorias.value = {
-        ...documentoCreado.campos
-    }
-
-    await firmarYSubirDocumentoEspecial(documentoCreado.id,documentoCreado.cuerpo)
-
-    creados++
-} 
 
     }
     generando.value = false
@@ -652,54 +648,51 @@ async function generarDocumentos() {
     alert(mensaje)
 }
 
-
-// Ver / imprimir todos los generados de este periodo juntos
+// Ver / imprimir todos los oficios del periodo. La ventana es un
+// componente compartido con la Bitácora de Secretaria/Apoyo.
 const mostrarImpresion = ref(false)
-const documentosParaImprimir = ref([])
-const cargandoImpresion = ref(false)
-
-async function abrirImpresion() {
-    cargandoImpresion.value = true
+function abrirImpresion() {
     mostrarImpresion.value = true
-    const todos = await getDocumentos()
-    documentosParaImprimir.value = todos
-        .filter(d => d.tipo === 'tutorias'
-            && esDelPeriodo(d.campos?.periodo, d.campos?.anio_periodo, seleccion.value, anioSinDato.value))
-        .sort((a, b) => Number(a.campos?.numero_oficio) - Number(b.campos?.numero_oficio))
-    cargandoImpresion.value = false
-}
-function cerrarImpresion() {
-    mostrarImpresion.value = false
 }
 
+// Compartir el lote del periodo con Secretaria/Apoyo: todos los oficios
+// (no cancelados) quedan visibles para ella, y el periodo se anota en
+// config.tutorias_compartidas para que los oficios NUEVOS que se generen
+// después también se compartan solos.
+const claveLote = computed(() => `${periodoActual.value}-${anioActual.value}`)
+const loteCompartido = computed(() => (config.value?.tutorias_compartidas || []).includes(claveLote.value))
+const cambiandoLote = ref(false)
 
-// Borra de una vez los oficios de este periodo (los que se ven en esta
-// ventana), por si se generaron por error. Los grupos y tutores no se
-// tocan. Los números de folio ya usados no se reutilizan: el contador
-// sigue adelante, como en cualquier folio oficial.
-const borrandoOficios = ref(false)
-async function borrarOficiosDelPeriodo() {
-    const lista = documentosParaImprimir.value
-    if (lista.length === 0) return
+async function alternarLote() {
+    const activar = !loteCompartido.value
     const nombre = etiquetaPeriodo(periodoActual.value, anioActual.value)
-    const prefijo = config.value?.folio?.prefijo_default || 'P'
-    const anioFolio = config.value?.folio?.anio || new Date().getFullYear()
-    const numeros = lista.map(d => Number(d.campos?.numero_oficio)).filter(n => n > 0).sort((a, b) => a - b)
-    const rango = numeros.length
-        ? `Folios: ${formatearFolio(numeros[0], prefijo, anioFolio)}${numeros.length > 1 ? ` a ${formatearFolio(numeros[numeros.length - 1], prefijo, anioFolio)}` : ''}\n`
-        : ''
-    if (!confirm(`¿Borrar los ${lista.length} oficio(s) de tutoría de ${nombre}?\n${rango}\nLos grupos y tutores NO se tocan.\nLos números de folio ya usados no se reutilizan.\n\nEsta acción no se puede deshacer.`)) return
-    borrandoOficios.value = true
-    for (const d of lista) {
-        await eliminarDocumento(d.id)
+    if (!activar && !confirm(`¿Dejar de compartir los oficios de ${nombre} con la Secretaria?\n\nYa no los verá en su Bitácora.`)) return
+    cambiandoLote.value = true
+    try {
+        const lista = new Set(config.value?.tutorias_compartidas || [])
+        if (activar) lista.add(claveLote.value)
+        else lista.delete(claveLote.value)
+        await actualizarConfiguracion({ tutorias_compartidas: [...lista] })
+        config.value = { ...config.value, tutorias_compartidas: [...lista] }
+
+        // Al compartir se saltan los cancelados; al dejar de compartir se
+        // ocultan todos, también los que se cancelaron ya compartidos.
+        const oficios = (await getDocumentos()).filter(d => d.tipo === 'tutorias'
+            && (!activar || d.estado !== 'cancelado')
+            && esDelPeriodo(d.campos?.periodo, d.campos?.anio_periodo, seleccion.value, anioSinDato.value))
+        for (const d of oficios) {
+            await actualizarDocumento(d.id, { visibleParaSecretaria: activar })
+        }
+        if (activar) {
+            alert(oficios.length
+                ? `Listo: ${oficios.length} oficio(s) de ${nombre} compartidos con la Secretaria.`
+                : `${nombre} quedó compartido con la Secretaria.`)
+        }
+    } finally {
+        cambiandoLote.value = false
     }
-    borrandoOficios.value = false
-    documentosParaImprimir.value = []
 }
 
-function imprimirTodos() {
-    imprimirConTitulo(`tutorias_${periodoActual.value}_${anioActual.value}`)
-}
 </script>
 
 <template>
@@ -754,6 +747,21 @@ function imprimirTodos() {
                         <button class="btn btn-outline-primary btn-sm" @click="abrirImpresion">
                             <i class="bi bi-printer me-1"></i> Ver / Imprimir todos
                         </button>
+
+                        <button v-if="!loteCompartido" class="btn btn-outline-secondary btn-sm" :disabled="cambiandoLote"
+                            @click="alternarLote" title="Comparte todos los oficios de este periodo para que la Secretaria los imprima juntos">
+                            <span v-if="cambiandoLote" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-share me-1"></i> Compartir lote con Secretaria
+                        </button>
+                        <template v-else>
+                            <span class="badge text-bg-success d-inline-flex align-items-center px-3">
+                                <i class="bi bi-check2 me-1"></i> Compartido con Secretaria
+                            </span>
+                            <button class="btn btn-outline-secondary btn-sm" :disabled="cambiandoLote" @click="alternarLote">
+                                <span v-if="cambiandoLote" class="spinner-border spinner-border-sm me-1"></span>
+                                Dejar de compartir
+                            </button>
+                        </template>
                     </div>
                 </div>
 
@@ -794,8 +802,7 @@ function imprimirTodos() {
                                         <div class="small text-truncate"
                                             :style="d.id === docenteSeleccionado ? `color:${colorDocente(d.id)};` : 'color:var(--bs-secondary-color);'">
                                             {{gruposDeDocente(d.id).length === 0 ? 'Sin grupos asignados' :
-                                                gruposDeDocente(d.id).length + ' grupo(s): ' + gruposDeDocente(d.id).map(g =>
-                                            g.clave).join(', ') }}
+                                                gruposDeDocente(d.id).length + ' grupo(s): ' + gruposDeDocente(d.id).map(g  => g.clave).join(', ') }}
                                         </div>
                                     </div>
                                 </div>
@@ -856,7 +863,7 @@ function imprimirTodos() {
                                 <div class="row g-3">
                                     <div v-for="(c, key) in CARRERAS" :key="key" class="col-12 col-md-4">
                                         <span class="badge mb-2" :style="`background:${c.color};color:#0b1220;`">{{ key
-                                        }} · {{ c.siglas
+                                            }} · {{ c.siglas
                                             }}</span>
                                         <div v-for="fila in filasPorCarrera[key]" :key="fila.semestre" class="mb-2">
                                             <div class="small text-muted mb-1">Sem. {{ fila.semestre }}</div>
@@ -966,69 +973,16 @@ function imprimirTodos() {
             </template>
         </div>
 
-        <!-- Modal: ver / imprimir todos los generados de este periodo -->
-        <div v-if="mostrarImpresion" class="modal-impresion">
-            <div class="no-print d-flex justify-content-between align-items-center p-3 border-bottom bg-dark">
-                <h6 class="text-white m-0">
-                    Tutorías — {{ etiquetaPeriodo(periodoActual, anioActual) }}
-                    <span class="text-white-50 small">
-                        ({{ documentosParaImprimir.length }} documento{{ documentosParaImprimir.length === 1 ? '' : 's'
-                        }})
-                    </span>
-                </h6>
-                         
-                <!-- Separado de Cerrar/Imprimir para no presionarlo por error. -->
-                <button class="btn btn-danger btn-sm" :disabled="documentosParaImprimir.length === 0 || borrandoOficios"
-                    @click="borrarOficiosDelPeriodo" title="Por si se generaron por error. Los grupos y tutores no se tocan.">
-                    <span v-if="borrandoOficios" class="spinner-border spinner-border-sm me-1"></span>
-                    <i v-else class="bi bi-trash me-1"></i> Borrar estos oficios
-                </button>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-danger btn-sm" @click="cerrarImpresion">
-                        <i class="bi bi-x-lg"></i> Cerrar
-                    </button>
-                    <button class="btn btn-primary btn-sm" :disabled="documentosParaImprimir.length === 0"
-                        @click="imprimirTodos">
-                        <i class="bi bi-printer me-1"></i> Imprimir / Guardar PDF (todos)
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="cargandoImpresion" class="text-center py-5"><span class="spinner-border"></span></div>
-            <div v-else class="p-4">
-                <p v-if="documentosParaImprimir.length === 0" class="text-muted text-center py-5 no-print">
-                    No hay documentos de Tutorías generados para este periodo todavía.
-                </p>
-                <template v-for="(doc, i) in documentosParaImprimir" :key="doc.id">
-                    <!-- Cada oficio con SU formato guardado (pueden venir de
-                     generaciones distintas) + salto de página entre ellos. -->
-                    <div class="bg-white border rounded p-4 documento-carta"
-                        :style="[variablesDeEstilo(estiloDe(doc, config)), i < documentosParaImprimir.length - 1 ? { pageBreakAfter: 'always' } : {}]"
-                        style="color:#333;" v-html="doc.cuerpo"></div>
-                </template>
-            </div>
-        </div>
+                <!-- Ver / imprimir todos los oficios del periodo (componente compartido) -->
+        <ImpresionOficiosTutorias v-if="mostrarImpresion" :periodo-inicial="seleccion" puede-borrar
+            @cerrar="mostrarImpresion = false" />
     </AdminLayout>
 </template>
 
 <style scoped>
-.modal-impresion {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, .85);
-    z-index: 1050;
-    overflow-y: auto;
-}
-
 @media print {
     .no-imprimir {
         display: none !important;
-    }
-
-    .modal-impresion {
-        position: static !important;
-        background: none !important;
-        overflow: visible !important;
     }
 }
 </style>

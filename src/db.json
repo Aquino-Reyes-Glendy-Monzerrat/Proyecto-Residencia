@@ -74,7 +74,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "DOCTORADO EN TECNOLOGÍAS DE INFORMACIÓN",
-      "abreviatura": "DRA."
+      "abreviatura": "DRA.",
+      "hashFirma": "bf914aa2aee07de722a3a80feda505241a3b013607b247443d3630049a54b511"
     },
     {
       "id": "2",
@@ -82,7 +83,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "LICENCIATURA EN INFORMÁTICA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "e2eae191ce42f56ae76f6198d04c3053a7d6fab303ddbfd12b650ce2d355e2c1"
     },
     {
       "id": "3",
@@ -90,7 +92,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN ADMINISTRACIÓN",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "35acc8409619dd5545d7708db15e1982e9db3cb87e8fa7426218238777b41022"
     },
     {
       "id": "4",
@@ -98,7 +101,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "MAESTRÍA EN CIENCIAS EN PLANIFICACIÓN DE EMPRESAS Y DESARROLLO REGIONAL",
-      "abreviatura": "M.C."
+      "abreviatura": "M.C.",
+      "hashFirma": "742f89e96c9856446f77c249d2d3510ec60ef65f1703ca5e4863d0a4b30fb101"
     },
     {
       "id": "5",
@@ -106,7 +110,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "6b6703c973cfa2c6e8cfaa77c41f96d9ef08cfa7b7c965d037346dc8605311f6"
     },
     {
       "id": "6",
@@ -114,7 +119,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "M.S.C."
+      "abreviatura": "M.S.C.",
+      "hashFirma": "ca83f4b599c4820ad58db50bb383a8aced1eb3051cb3bb502a8393d9bbe09de2"
     },
     {
       "id": "7",
@@ -122,7 +128,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "LICENCIATURA EN INFORMÁTICA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "3c22f4efe0bce9c7708c0ee88487fcaf207f02837de292db1f8aab192d22c5fb"
     },
     {
       "id": "8",
@@ -130,7 +137,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN TECNOLOGÍAS DE INFORMACIÓN",
-      "abreviatura": "M.T.I."
+      "abreviatura": "M.T.I.",
+      "hashFirma": "dc1e5b12674f0a0269d58b9708edbcef5d9c00e42d886f557b02181f01ebeb35"
     },
     {
       "id": "9",
@@ -138,7 +146,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "INGENIERÍA EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "ING."
+      "abreviatura": "ING.",
+      "hashFirma": "1443d8004d896d82e703ae9171831d7f858d1cb06d4d9d055caa484227e20549"
     },
     {
       "id": "10",
@@ -146,7 +155,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "LICENCIATURA EN INFORMÁTICA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "62283998e6f16481b6941b14daa50b6913bb476c35b4a8028d4bdd259f3b4294"
     },
     {
       "id": "11",
@@ -154,7 +164,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "LICENCIATURA EN SISTEMAS DE COMPUTACIÓN ADMINISTRATIVA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "3346ecda3dd983dddfc99d11e56af0757671a48efdb365f2394f05d9debea519"
     },
     {
       "id": "12",
@@ -162,7 +173,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN CIENCIAS DE LA COMPUTACIÓN",
-      "abreviatura": "M.C."
+      "abreviatura": "M.C.",
+      "hashFirma": "053c95d1c21dbaefb7798e701e9b4b9f5279ddc4f27aa0b5df679812025d3985"
     },
     {
       "id": "13",
@@ -170,7 +182,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN TECNOLOGÍA EDUCATIVA",
-      "abreviatura": "M.T.E."
+      "abreviatura": "M.T.E.",
+      "hashFirma": "58c25bf226a4604a3cac13c6004bc0c029db8e82320deae1f8ea7f18685180f5"
     },
     {
       "id": "14",
@@ -178,7 +191,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "LICENCIATURA EN INFORMÁTICA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "2670e1c75ece96221cef18f950e31ec0705b62ea561c0f13c5c6d65f640dbd1b"
     },
     {
       "id": "15",
@@ -186,7 +200,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "204fa0c23abbac01e3c201a8d7798afd46b63f7fab643d4cb1b34a0ba3d0606d"
     },
     {
       "id": "16",
@@ -194,7 +209,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN CIENCIAS DE LA COMPUTACIÓN",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "62ca9d0247cc67bd03dca75c22ac8d3d619a57d595d5e7ec6ae17c8772ba0643"
     },
     {
       "id": "17",
@@ -202,7 +218,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN ADMINISTRACIÓN ESCOLAR Y EDUCATIVA",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "2ef4922783a805dd51e8c430a0b379393acb3026e690adb38e899ca61e040b86"
     },
     {
       "id": "18",
@@ -210,7 +227,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "M.S.C."
+      "abreviatura": "M.S.C.",
+      "hashFirma": "b7133f03286bcdcb8ad48668659ce149075c4c10823c519a91ce0ff5f0a0e347"
     },
     {
       "id": "19",
@@ -218,7 +236,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "MAESTRÍA EN TECNOLOGÍAS DE INFORMACIÓN",
-      "abreviatura": "M.T.I."
+      "abreviatura": "M.T.I.",
+      "hashFirma": "3e44e6498de93b519459f1046b2ba22387c7834c098fca54c9bb3a04fd925d17"
     },
     {
       "id": "20",
@@ -226,7 +245,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "M.S.C."
+      "abreviatura": "M.S.C.",
+      "hashFirma": "c5496417f8a2bfa223302926151fccab0673e00f0f31175a652b0939844eef7b"
     },
     {
       "id": "21",
@@ -234,7 +254,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "LICENCIATURA EN INFORMÁTICA",
-      "abreviatura": "LIC."
+      "abreviatura": "LIC.",
+      "hashFirma": "5a41b605b9d2fedce1cce39e233de1abdf60dbc38a977daec90d7db2ec55667e"
     },
     {
       "id": "22",
@@ -242,7 +263,8 @@
       "cargo": "Docente",
       "sexo": "F",
       "grado": "MAESTRÍA EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "M.S.C."
+      "abreviatura": "M.S.C.",
+      "hashFirma": "317d7671b925face0456bdf0a4abd5c80d9a7e595895c70b1c362bb1ae4184e0"
     },
     {
       "id": "23",
@@ -250,7 +272,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "MAESTRÍA EN SISTEMAS DE INFORMACIÓN (ADMINISTRACIÓN DE LA TECNOLOGÍA INFORMÁTICA)",
-      "abreviatura": "M.S.I."
+      "abreviatura": "M.S.I.",
+      "hashFirma": "a01132a7f7dc74d52ee972c0cccd18df0013cb0ca8e1b558cef7ff2f44679943"
     },
     {
       "id": "24",
@@ -258,7 +281,8 @@
       "cargo": "Docente",
       "sexo": "M",
       "grado": "DOCTORADO EN SISTEMAS COMPUTACIONALES",
-      "abreviatura": "DR."
+      "abreviatura": "DR.",
+      "hashFirma": "4dffe61b42a5fa26807d051dba5bfb0d4c0f861d5916d539eee1715ec1c8cb9c"
     }
   ],
   "egresados": [
@@ -286,7 +310,7 @@
       "docenteIds": [
         "7"
       ],
-      "id": 1
+      "id": 6
     },
     {
       "clave": "I4A",
@@ -298,7 +322,7 @@
       "docenteIds": [
         "18"
       ],
-      "id": 2
+      "id": 7
     },
     {
       "clave": "I6A",
@@ -310,78 +334,17 @@
       "docenteIds": [
         "23"
       ],
-      "id": 3
+      "id": 8
     },
     {
-      "clave": "I8A",
+      "clave": "I8D",
       "carrera": "I",
       "semestre": 8,
-      "letra": "A",
+      "letra": "D",
       "periodo": "ENE-JUN",
       "anio": 2027,
       "docenteIds": [
         "1"
-      ],
-      "id": 4
-    },
-    {
-      "clave": "I1A",
-      "carrera": "I",
-      "semestre": 1,
-      "letra": "A",
-      "periodo": "AGO-DIC",
-      "anio": 2026,
-      "docenteIds": [
-        "7",
-        "9"
-      ],
-      "id": 5
-    },
-    {
-      "clave": "I3A",
-      "carrera": "I",
-      "semestre": 3,
-      "letra": "A",
-      "periodo": "AGO-DIC",
-      "anio": 2026,
-      "docenteIds": [
-        "18"
-      ],
-      "id": 6
-    },
-    {
-      "clave": "I5A",
-      "carrera": "I",
-      "semestre": 5,
-      "letra": "A",
-      "periodo": "AGO-DIC",
-      "anio": 2026,
-      "docenteIds": [
-        "23"
-      ],
-      "id": 7
-    },
-    {
-      "clave": "I7A",
-      "carrera": "I",
-      "semestre": 7,
-      "letra": "A",
-      "periodo": "AGO-DIC",
-      "anio": 2026,
-      "docenteIds": [
-        "1"
-      ],
-      "id": 8
-    },
-    {
-      "clave": "I9A",
-      "carrera": "I",
-      "semestre": 9,
-      "letra": "A",
-      "periodo": "AGO-DIC",
-      "anio": 2026,
-      "docenteIds": [
-        "5"
       ],
       "id": 9
     }
@@ -391,8 +354,18 @@
       "id": "20",
       "tipo": "tutorias",
       "nombre": "Tutorías",
-      "asunto": "Asignación de Tutorías",
-      "cuerpo": "<p>Por este medio se le comunica que ha sido {asignado_texto} como <strong>{tutor_texto}</strong> de {grupo_o_grupos}, durante el periodo <strong>{periodo_texto}</strong>: {lista_grupos}.</p><p>Sin más por el momento y agradeciendo de antemano la atención que brinde al presente, aprovecho para enviarle un cordial saludo.</p>"
+      "asunto": "Nombramiento como Tutor.",
+      "cuerpo": "<p>Con el propósito de contribuir en la formación integral de los estudiantes mediante su acompañamiento, incidir en las metas institucionales relacionadas con la calidad educativa, ayudar a elevar los índices de eficiencia terminal, así como reducir los índices de reprobación y deserción, me permito informar a usted que ha sido {nombrado_texto} {tutor_texto} {grupos_carrera}, durante el semestre {periodo_texto}.</p><p>Agradeciendo de antemano su apoyo en esta importante actividad, aprovecho para enviarle un cordial saludo.</p>",
+      "ccp": [
+        "Minutario"
+      ]
+    },
+    {
+      "id": "21",
+      "tipo": "constancia-tutorado",
+      "nombre": "Constancia Créditos de Tutoría",
+      "asunto": "Constancia de cumplimiento de actividad complementaria con participación como tutorado en el “Programa Institucional de Tutorías”",
+      "cuerpo": "<p>El que suscribe, <strong>{nombre_jefe_depto}</strong>, Jefe de Departamento de Sistemas y Computación de este instituto, por este medio permite hacer de su conocimiento que el (la) estudiante <strong>{nombre_estudiante}</strong>, con número de control <strong>{numero_control}</strong>, de la carrera <strong>{carrera}</strong>, ha cumplido su actividad complementaria con el nivel de desempeño Bueno y un valor numérico de 2, durante el período escolar <strong>{periodo_escolar_texto}</strong>, con un valor curricular de <strong>1</strong> crédito.</p><p>Se extiende la presente en la ciudad de Chetumal {fecha_letras}.</p>"
     },
     {
       "id": "12",
@@ -510,7 +483,8 @@
       "tamano_lema_secundario": 7,
       "headerImgBase64": null,
       "pieImgBase64": null
-    }
+    },
+    "tutorias_compartidas": []
   },
   "bitacora": [],
   "documentos": [],
@@ -522,7 +496,8 @@
       "puesto": "JEFE DEL DEPTO. DE SISTEMAS Y COMPUTACIÓN",
       "iniciales": "MAZE",
       "clave": "jefe_depto",
-      "firma": true
+      "firma": true,
+      "hashFirma": "4dffe61b42a5fa26807d051dba5bfb0d4c0f861d5916d539eee1715ec1c8cb9c"
     },
     {
       "id": "2",
@@ -531,7 +506,8 @@
       "puesto": "DIRECTOR",
       "iniciales": "MVGR",
       "clave": "director",
-      "firma": true
+      "firma": true,
+      "hashFirma": "c434c20055c4643ed3bcc3de658dc926f0c811ef89c14485c413e1fa527725fa"
     },
     {
       "id": "3",
@@ -540,7 +516,8 @@
       "puesto": "SUBDIRECTORA ACADÉMICA",
       "iniciales": "MANM",
       "clave": "subdirectora",
-      "firma": true
+      "firma": true,
+      "hashFirma": "3e44e6498de93b519459f1046b2ba22387c7834c098fca54c9bb3a04fd925d17"
     },
     {
       "id": "4",
@@ -573,6 +550,13 @@
       "nombre": "CECILIA LORIA TZAB",
       "puesto": "JEFA DE LA DIVISIÓN DE ESTUDIOS PROFESIONALES",
       "clave": "jefa_division_estudios"
+    },
+    {
+      "id": "4",
+      "grado": "MTRA.",
+      "nombre": "MELISA MENDOZA GIL",
+      "puesto": "JEFA DEL DEPARTAMENTO DE SERVICIOS ESCOLARES",
+      "clave": "jefa_servicios_escolares"
     }
   ],
   "grados": [
@@ -742,6 +726,5 @@
       "valor": "Poppins, Arial, sans-serif",
       "etiqueta": "Poppins"
     }
-  ],
-  "$schema": "./node_modules/json-server/schema.json"
+  ]
 }

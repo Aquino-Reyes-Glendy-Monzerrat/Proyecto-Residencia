@@ -28,3 +28,22 @@ export function aFechaISO(fechaStr) {
     }
     return fechaStr.slice(0, 10)
 }
+
+
+
+// 'AAAA-MM-DD' → 'a los seis días del mes de enero de 2024'
+// (para "Se extiende la presente en la ciudad de Chetumal ...").
+const DIAS_EN_LETRAS = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
+    'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho',
+    'diecinueve', 'veinte', 'veintiún', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco',
+    'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve', 'treinta', 'treinta y un']
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+    'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+export function fechaEnLetras(fechaStr) {
+    if (!fechaStr) return ''
+    const fecha = new Date(fechaStr + 'T00:00:00')
+    const dia = fecha.getDate()
+    const inicio = dia === 1 ? 'al primer día' : `a los ${DIAS_EN_LETRAS[dia]} días`
+    return `${inicio} del mes de ${MESES[fecha.getMonth()]} de ${fecha.getFullYear()}`
+}

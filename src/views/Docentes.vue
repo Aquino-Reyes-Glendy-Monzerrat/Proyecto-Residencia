@@ -17,7 +17,7 @@ function gradoComoTexto(grado) {
 
 // Lista (ordenada por nombre) + formulario de agregar/editar (ver useCatalogo.js).
 const {
-    lista: docentes, cargando, guardando, form, editandoId, editar, cancelarEdicion, guardar, eliminar: eliminarConfirm,
+    lista: docentes, cargando, guardando, form, editandoId, editar, cancelarEdicion, guardar,
 } = useCatalogo({
     api: { listar: getDocentes, agregar: agregarDocente, actualizar: actualizarDocente, eliminar: eliminarDocente },
     vacio: () => ({ nombre: '', sexo: '', grado: '', abreviatura: '', cargo: 'Docente' }),
@@ -151,9 +151,7 @@ async function agregarNuevaAbreviatura() {
                                         <button class="btn btn-sm btn-outline-primary me-1" @click="editar(d)">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" @click="eliminarConfirm(d)">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        
                                     </td>
                                 </tr>
                             </tbody>

@@ -13,6 +13,7 @@ export const TIPOS_TAREA = {
     'Memorándum': { ruta: 'memorandum' },
     'Otros': { ruta: 'otros' },
     'Solicitud de Mantenimiento': { ruta: 'mantenimiento' },
+    'Constancia Créditos de Tutoría': { ruta: 'constancia-tutorado' },
 }
 
 // URL del formulario para cumplir una tarea, o null si su tipo no

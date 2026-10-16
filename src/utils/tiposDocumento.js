@@ -16,6 +16,7 @@ export const TIPOS_DOCUMENTO = [
     { valor: 'mantenimiento', etiqueta: 'Solicitud de Mantenimiento' },
     { valor: 'otros', etiqueta: 'Otros' },
     { valor: 'tutorias', etiqueta: 'Tutorías' },
+    { valor: 'constancia-tutorado', etiqueta: 'Constancia Créditos de Tutoría' },
 ]
 
 // Nombre legible de un doc.tipo; si no está en la lista, el tipo tal cual.

@@ -13,8 +13,8 @@ import { useSesion } from '../composables/UseSesion.js'
 import { formatearFolio } from '@/utils/folio.js'
 import { useImprimirCombinado } from '@/composables/useImprimirCombinado.js'
 import ComboImpresion from '@/components/ComboImpresion.vue'
-import { enCorreccion, esComisionConCadena } from '@/utils/estadoDocumento.js'
-
+import ImpresionOficiosTutorias from '@/components/Documentos/tutorias/ImpresionOficiosTutorias.vue'
+import { enCorreccion, esComisionConCadena, autorizadoPorCadena, esOficioDeLote } from '@/utils/estadoDocumento.js'
 import { TIPOS_TAREA } from '@/utils/tiposTarea.js'
 import { useParejaMemo } from '@/composables/useParejaMemo.js'
 import { useNavegacionBitacora } from '@/composables/useNavegacionBitacora.js'
@@ -271,6 +271,13 @@ function limpiarFiltros() {
 
 const { comboImprimir, imprimirCombinado } = useImprimirCombinado()
 
+
+// Oficios de Tutorías que el Admin le compartió (lote del periodo o
+// uno suelto): se imprimen todos juntos desde "Oficios Tutorías".
+const oficiosTutoriasCompartidos = computed(() =>
+    documentos.value.filter(d => esOficioDeLote(d) && d.visibleParaSecretaria && d.estado !== 'cancelado'))
+const mostrarOficiosTutorias = ref(false)
+
 // Editar aplica a lo que ella creó y a lo compartido por Admin —
 // al editar un compartido se manda a revisión del Jefe de Depto
 // (ver destinoAlGuardarEdicion en NuevoDocumento.vue).
@@ -280,9 +287,11 @@ function fueAsignada(doc) {
 }
 function puedeEditar(doc) {
     if (!doc.tipoRuta) return false
+    // Tutorías: solo se corrige desde el módulo Tutorías (ver esOficioDeLote).
+    if (esOficioDeLote(doc)) return false
     // Autorizado ya cerró su ciclo — tampoco lo edita el Admin.
-    if (doc.estado === 'autorizado') return false
-    if (usuario.rol === 'admin') return true
+    if (autorizadoPorCadena(doc)) return false
+        if (usuario.rol === 'admin') return true
     return esMio(doc) || esCompartido(doc)
 }
 
@@ -428,14 +437,21 @@ async function borrarTarea(entrada) {
 </script>
 
 <template>
-    <div :class="{ 'oculto-al-imprimir': comboImprimir.mostrando }">
+    <div :class="{ 'oculto-al-imprimir': comboImprimir.mostrando || mostrarOficiosTutorias }">
         <AdminLayout>
             <!-- CHIPS -->
             <section class="panel mb-3 p-3">
                 <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
+                    <div class="d-flex flex-wrap gap-2">
                     <button type="button" class="btn btn-primary btn-sm" @click="abrirModal">
                         <i class="bi bi-plus-square-fill"></i> Nueva entrada
                     </button>
+                    <button v-if="oficiosTutoriasCompartidos.length" type="button" class="btn btn-outline-primary btn-sm"
+                        @click="mostrarOficiosTutorias = true" title="Ver e imprimir juntos los oficios de Tutorías que te compartieron">
+                        <i class="bi bi-printer me-1"></i> Oficios Tutorías
+                        <span class="badge text-bg-primary ms-1">{{ oficiosTutoriasCompartidos.length }}</span>
+                    </button>
+                    </div>
 
                     <div class="d-flex flex-wrap gap-1">
                         <button type="button" class="btn btn-sm"
@@ -612,7 +628,7 @@ async function borrarTarea(entrada) {
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button
-                                            v-if="doc.tipo !== 'comision-externa' && !(doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto) && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && !enCorreccion(doc)"
+                                            v-if="doc.tipo !== 'comision-externa' && !(doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto) && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && !enCorreccion(doc) && !esOficioDeLote(doc)"
                                             type="button" class="btn btn-sm btn-outline-warning"
                                             title="Enviar a revisión" @click="enviarARevision(doc)">
                                             <i class="bi bi-send"></i>
@@ -685,5 +701,8 @@ async function borrarTarea(entrada) {
 
        <ComboImpresion v-if="comboImprimir.mostrando" :html-primero="comboImprimir.htmlPrimero"
         :html-segundo="comboImprimir.htmlSegundo" :estilo-primero="comboImprimir.estiloPrimero"
-        :estilo-segundo="comboImprimir.estiloSegundo" />
+                :estilo-segundo="comboImprimir.estiloSegundo" />
+
+    <ImpresionOficiosTutorias v-if="mostrarOficiosTutorias" solo-compartidos
+        @cerrar="mostrarOficiosTutorias = false" />
 </template>

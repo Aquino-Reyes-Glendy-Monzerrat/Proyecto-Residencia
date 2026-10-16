@@ -19,6 +19,7 @@ const documentos = [
     { tipo: 'memorandum', nombre: 'Memorándum', icono: 'bi-file-text' },
     { tipo: 'mantenimiento', nombre: 'Solicitud de Mantenimiento', icono: 'bi-tools' },
     { tipo: 'otros', nombre: 'Otros', icono: 'bi-journal-text' },
+    { tipo: 'constancia-tutorado', nombre: 'Constancia Créditos de Tutoría', icono: 'bi-award' },
 ]
 
 </script>

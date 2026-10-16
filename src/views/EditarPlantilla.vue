@@ -29,6 +29,7 @@ const documentosEditables = [
     //{ tipo: 'otros', nombre: 'Otros', icono: 'bi-journal-text' },
     { tipo: 'mantenimiento', nombre: 'Solicitud de Mantenimiento', icono: 'bi-tools' },
     { tipo: 'tutorias', nombre: 'Tutorías', icono: 'bi-person-video3' },
+    { tipo: 'constancia-tutorado', nombre: 'Constancia Créditos de Tutoría', icono: 'bi-award' },
 ]
 
 

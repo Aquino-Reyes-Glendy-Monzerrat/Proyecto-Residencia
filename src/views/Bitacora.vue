@@ -22,8 +22,8 @@ import { useImprimirCombinado } from '@/composables/useImprimirCombinado.js'
 import ComboImpresion from '@/components/ComboImpresion.vue'
 
 import CompartirAcciones from '@/components/CompartirAcciones.vue'
-import { enCorreccion, esComisionConCadena } from '@/utils/estadoDocumento.js'
 
+import { enCorreccion, esComisionConCadena, autorizadoPorCadena, esOficioDeLote } from '@/utils/estadoDocumento.js'
 
 import { TIPOS_TAREA } from '@/utils/tiposTarea.js'
 import { useParejaMemo } from '@/composables/useParejaMemo.js'
@@ -213,7 +213,7 @@ async function alternarCompartir(doc) {
 
 // Solo tiene sentido si ya está compartido y no está Autorizado.
 function puedeCorregir(doc) {
-    return !!doc.visibleParaSecretaria && doc.estado !== 'autorizado'
+    return !!doc.visibleParaSecretaria && !autorizadoPorCadena(doc) && !esOficioDeLote(doc)
 }
 
 // Repetible cuantas veces haga falta. Si estaba con la Subdirectora/
@@ -530,7 +530,7 @@ async function confirmarRetroalimentacion(doc) {
 }
 
 async function cancelarDoc(doc) {
-    if (doc.estado === 'autorizado') {
+    if (autorizadoPorCadena(doc)) {
         const quienAutorizo = (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)
             ? 'la Subdirectora'
             : 'el Director'
@@ -1017,7 +1017,7 @@ async function guardarTarea() {
 
                                         <template v-if="fila.fase === 'pendiente_jefeDepto'">
 
-                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            <button v-if="!esOficioDeLote(fila)" class="btn btn-sm btn-outline-secondary" title="Editar"
                                                 @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
                                             <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
@@ -1142,10 +1142,12 @@ async function guardarTarea() {
                                                 <!-- Cancelado: se deja así (Borrar), se retoma uno mismo
                                                  (Editar), o se manda a corregir, igual que las comisiones. -->
 
-                                                <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                                <button v-if="!esOficioDeLote(fila)" class="btn btn-sm btn-outline-secondary" title="Editar"
                                                     @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
-
+                                 <!-- Tutorías cancelado: solo el Admin lo retoma (Editar)
+                                                 o lo borra; no se manda a la Secretaria. -->
+                                                <template v-if="fila.tipo !== 'tutorias'">
                                                 <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
                                                     :puede-corregir="puedeCorregir(fila)"
                                                     @compartir="alternarCompartir(fila)"
@@ -1157,6 +1159,7 @@ async function guardarTarea() {
                                                     title="Regresar a la Secretaria"
                                                     @click="abrirRetroalimentacion(fila)"><i
                                                         class="bi bi-arrow-return-left"></i></button>
+                                                </template>
 
                                                 <button class="btn btn-sm btn-outline-danger" title="Borrar"
                                                     @click="borrarDocumentoNormal(fila)"><i
@@ -1176,7 +1179,7 @@ async function guardarTarea() {
 
                                         <template v-else-if="fila.fase === 'c'">
 
-                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            <button v-if="!esOficioDeLote(fila)" class="btn btn-sm btn-outline-secondary" title="Editar"
                                                 @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
                                             <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
@@ -1191,7 +1194,7 @@ async function guardarTarea() {
 
                                         <template v-else>
 
-                                            <button class="btn btn-sm btn-outline-secondary" title="Editar"
+                                            <button v-if="!esOficioDeLote(fila)" class="btn btn-sm btn-outline-secondary" title="Editar"
                                                 @click="editarDocumento(fila)"><i class="bi bi-pencil"></i></button>
 
                                             <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"

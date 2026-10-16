@@ -28,4 +28,9 @@ export const NOMBRES_CAMPOS = {
     texto_libre: "Texto libre",
     tipo_actividad: "Actividad",
     tutor_texto: "Tutor(a)",
+    nombrado_texto: "Nombrado(a)",
+    grupos_carrera: "Grupo(s) y carrera",
+    nombre_jefe_depto: "Jefe de Depto.",
+    periodo_escolar_texto: "Periodo escolar",
+    fecha_letras: "Fecha en letras",
 };
