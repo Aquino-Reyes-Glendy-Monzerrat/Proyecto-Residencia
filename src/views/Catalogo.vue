@@ -1,6 +1,11 @@
 <script setup>
 import AdminLayout from '../layout/AdminLayout.vue'
-import { getGrados, agregarGrado, actualizarGrado, eliminarGrado, getCcpOpciones, agregarCcpOpcion, actualizarCcpOpcion, eliminarCcpOpcion } from '../services/api.js'
+import {
+    getGrados, agregarGrado, actualizarGrado, eliminarGrado,
+    getCcpOpciones, agregarCcpOpcion, actualizarCcpOpcion, eliminarCcpOpcion,
+    getTiposIncidencia, agregarTipoIncidencia, actualizarTipoIncidencia, eliminarTipoIncidencia,
+    getActividadesComplementarias, agregarActividadComplementaria, actualizarActividadComplementaria, eliminarActividadComplementaria,
+} from '../services/api.js'
 import { useCatalogo } from '@/composables/useCatalogo.js'
 
 // ─── GRADOS ─── (lista + formulario, ver useCatalogo.js)
@@ -28,6 +33,36 @@ const {
     aDatos: (texto) => ({ etiqueta: texto.trim() }),
     textoEliminar: (c) => `¿Eliminar "${c.etiqueta}" del catálogo de notas de copia?`,
 })
+
+//  TIPOS DE INCIDENCIA 
+const {
+    lista: tiposIncidencia, cargando: cargandoTipos, guardando: guardandoTipo, form: formTipo, editandoId: editandoTipoId,
+    editar: editarTipo, cancelarEdicion: cancelarEdicionTipo, guardar: guardarTipo, eliminar: eliminarTipoConfirm,
+} = useCatalogo({
+    api: { listar: getTiposIncidencia, agregar: agregarTipoIncidencia, actualizar: actualizarTipoIncidencia, eliminar: eliminarTipoIncidencia },
+    vacio: () => ({ valor: '' }),
+    desdeRegistro: (t) => ({ valor: t.valor }),
+    validar: (f) => (!f.valor.trim() ? 'Escribe el tipo de incidencia' : ''),
+    aDatos: (f) => ({ valor: f.valor.trim() }),
+    textoEliminar: (t) => `¿Eliminar "${t.valor}" del catálogo de tipos de incidencia?`,
+    ordenar: (a, b) => a.valor.localeCompare(b.valor, 'es'),
+})
+
+
+//actividaeds complementarias
+const {
+    lista: actividades, cargando: cargandoActividades, guardando: guardandoActividad, form: formActividad, editandoId: editandoActividadId,
+    editar: editarActividad, cancelarEdicion: cancelarEdicionActividad, guardar: guardarActividad, eliminar: eliminarActividadConfirm,
+} = useCatalogo({
+    api: { listar: getActividadesComplementarias, agregar: agregarActividadComplementaria, actualizar: actualizarActividadComplementaria, eliminar: eliminarActividadComplementaria },
+    vacio: () => ({ valor: '' }),
+    desdeRegistro: (a) => ({ valor: a.valor }),
+    validar: (f) => (!f.valor.trim() ? 'Escribe el tipo de actividad' : ''),
+    aDatos: (f) => ({ valor: f.valor.trim() }),
+    textoEliminar: (a) => `¿Eliminar "${a.valor}" del catálogo de actividades complementarias?`,
+    ordenar: (a, b) => a.valor.localeCompare(b.valor, 'es'),
+})
+
 </script>
 
 <template>
@@ -126,10 +161,7 @@ const {
 
                     <div class="panel p-4">
                         <h6 class="text-muted mb-3">Destinos registrados</h6>
-                        <p class="text-muted small">
-                            Estas son las opciones que aparecen como casillas en "Nota de copia (ccp)"
-                            al crear un documento.
-                        </p>
+                        
 
                         <div v-if="cargandoCcp" class="text-center py-4">
                             <span class="spinner-border"></span>
@@ -160,8 +192,110 @@ const {
                                 </tr>
                             </tbody>
                         </table>
+                                       </div>
+                </div>
+
+                <!-- ── TIPOS DE INCIDENCIA ── -->
+                <div class="col-12 col-lg-7">
+                    <div class="panel p-4 mb-3">
+                        <h6 class="text-muted mb-3">{{ editandoTipoId ? 'Editar tipo de incidencia' : 'Agregar tipo de incidencia' }}</h6>
+                        <div v-if="editandoTipoId" class="alert alert-warning d-flex justify-content-between align-items-center py-2 mb-3">
+                            <span><i class="bi bi-pencil-square me-1"></i> Editando <strong>{{ formTipo.valor }}</strong></span>
+                            <button type="button" class="btn-close" @click="cancelarEdicionTipo" aria-label="Cancelar edición"></button>
+                        </div>
+                        <div class="d-flex gap-2 align-items-end">
+                            <div class="flex-fill">
+                                <label class="form-label" for="nuevoTipoIncidencia">Tipo de incidencia</label>
+                                <input id="nuevoTipoIncidencia" type="text" class="form-control" v-model="formTipo.valor"
+                                    placeholder="Ej: Motivos personales…" @keyup.enter="guardarTipo">
+                            </div>
+                            <button class="btn btn-primary" :disabled="guardandoTipo" @click="guardarTipo">{{ editandoTipoId ? 'Guardar' : 'Agregar' }}</button>
+                            <button v-if="editandoTipoId" class="btn btn-outline-secondary" @click="cancelarEdicionTipo">Cancelar</button>
+                        </div>
+                    </div>
+                    <div class="panel p-4">
+                        <h6 class="text-muted mb-3">Tipos de incidencia registrados</h6>
+                        <div v-if="cargandoTipos" class="text-center py-4"><span class="spinner-border"></span></div>
+                        <div v-else-if="tiposIncidencia.length === 0" class="text-muted text-center py-4">Todavía no hay tipos de incidencia registrados.</div>
+                        <table v-else class="table align-middle">
+                            <thead><tr><th>Tipo de incidencia</th><th class="text-end">Acciones</th></tr></thead>
+                            <tbody>
+                                <tr v-for="t in tiposIncidencia" :key="t.id" :class="{ 'table-active': editandoTipoId === t.id }">
+                                    <td>{{ t.valor }}</td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-outline-primary me-1" @click="editarTipo(t)" :aria-label="`Editar ${t.valor}`"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="eliminarTipoConfirm(t)" :aria-label="`Eliminar ${t.valor}`"><i class="bi bi-trash"></i></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+
+                
+                <!-- activideades complememntarias -->
+                <div class="col-12 col-lg-5">
+                    <div class="panel p-4 mb-3">
+                        <h6 class="text-muted mb-3">
+                            {{ editandoActividadId ? 'Editar actividad complementaria' : 'Agregar actividad complementaria' }}
+                        </h6>
+
+                        <div v-if="editandoActividadId" class="alert alert-warning d-flex justify-content-between align-items-center py-2 mb-3">
+                            <span>Editando <strong>{{ formActividad.valor }}</strong></span>
+                            <button type="button" class="btn-close" @click="cancelarEdicionActividad" aria-label="Cancelar edición"></button>
+                        </div>
+
+                        <div class="d-flex gap-2 align-items-end">
+                            <div class="flex-fill">
+                                <label class="form-label" for="nuevaActividad">Tipo de actividad</label>
+                                <input id="nuevaActividad" type="text" class="form-control" v-model="formActividad.valor"
+                                    placeholder="Ej: Cursos en línea" @keyup.enter="guardarActividad">
+                            </div>
+                            <button class="btn btn-primary" :disabled="guardandoActividad" @click="guardarActividad">
+                                {{ editandoActividadId ? 'Guardar' : 'Agregar' }}
+                            </button>
+                            <button v-if="editandoActividadId" class="btn btn-outline-secondary" @click="cancelarEdicionActividad">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel p-4">
+                        <h6 class="text-muted mb-3">Actividades complementarias registradas</h6>
+                        
+
+                        <div v-if="cargandoActividades" class="text-center py-4">
+                            <span class="spinner-border"></span>
+                        </div>
+
+                        <div v-else-if="actividades.length === 0" class="text-muted text-center py-4">
+                            Todavía no hay actividades registradas.
+                        </div>
+
+                        <table v-else class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Tipo de actividad</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="a in actividades" :key="a.id" :class="{ 'table-active': editandoActividadId === a.id }">
+                                    <td>{{ a.valor }}</td>
+                                    <td class="text-end text-nowrap">
+                                        <button class="btn btn-sm btn-outline-primary me-1" @click="editarActividad(a)" :aria-label="`Editar ${a.valor}`">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @click="eliminarActividadConfirm(a)" :aria-label="`Eliminar ${a.valor}`">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
     </AdminLayout>

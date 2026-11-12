@@ -6,6 +6,7 @@ defineProps({
     campos: { type: Object, required: true },
     personas: { type: Array, default: () => [] },
     cargando: { type: Boolean, default: false },
+    texto: { type: String, default: 'Generar Documento' },
 })
 
 defineEmits(['generar'])
@@ -18,6 +19,6 @@ defineEmits(['generar'])
     <button class="btn btn-primary w-100 mt-2" @click="$emit('generar')" :disabled="cargando">
         <span v-if="cargando" class="spinner-border spinner-border-sm me-2"></span>
         <i v-else class="bi bi-file-earmark-check me-2"></i>
-        {{ cargando ? 'Generando...' : 'Generar Documento' }}
+        {{ cargando ? 'Generando...' : texto }}
     </button>
 </template>

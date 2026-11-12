@@ -4,7 +4,10 @@ import AdminLayout from '../layout/AdminLayout.vue'
 
 import { ref, computed, onMounted } from 'vue'
 
-import { useRouter, useRoute } from 'vue-router'
+import Paginacion from '@/components/Paginacion.vue'
+import { usePaginacion } from '@/composables/usePaginacion.js'
+
+import { useRouter } from 'vue-router'
 
 import { Modal } from 'bootstrap'
 
@@ -17,31 +20,30 @@ import {
 } from '../services/api.js'
 import { useSesion } from '../composables/UseSesion.js'
 
-import { formatearFolio } from '@/utils/folio.js'
+import { normalizarBusqueda, coincideBusqueda } from '@/utils/busquedaBitacora.js'
+import { folioActual } from '@/utils/folio.js'
+
 import { useImprimirCombinado } from '@/composables/useImprimirCombinado.js'
 import ComboImpresion from '@/components/ComboImpresion.vue'
 
 import CompartirAcciones from '@/components/CompartirAcciones.vue'
 
-import { enCorreccion, esComisionConCadena, autorizadoPorCadena, esOficioDeLote } from '@/utils/estadoDocumento.js'
+import {
+    enCorreccion, esComisionConCadena, autorizadoPorCadena, esOficioDeLote,
+    esParaRH, esperaEnvioRH, enviadoARH, cicloCerrado, estadoRH,
+} from '@/utils/estadoDocumento.js'
+import { useEnvioRH } from '@/composables/useEnvioRH.js'
 
-import { TIPOS_TAREA } from '@/utils/tiposTarea.js'
+import { TIPOS_TAREA, esTareaAbierta } from '@/utils/tiposTarea.js'
 import { useParejaMemo } from '@/composables/useParejaMemo.js'
 import { useNavegacionBitacora } from '@/composables/useNavegacionBitacora.js'
 import { TIPOS_DOCUMENTO, etiquetaTipo } from '@/utils/tiposDocumento.js'
+import { useFiltrosGuardados } from '@/composables/useFiltrosGuardados.js'
 import { aFechaISO, fechaHoy } from '@/utils/fechas.js'
 
 const router = useRouter()
 
-const route = useRoute()
-
 const { usuarioActivo } = useSesion()
-
-
-
-
-
-
 
 const cargando = ref(true)
 
@@ -54,6 +56,9 @@ const usuarios = ref([])
 const bitacoraPorDocumentoId = ref({})
 
 const retroalimentandoId = ref(null)
+
+const { firmarYEnviarARH } = useEnvioRH()
+const enviandoRH = ref(false)
 
 const textoObservacion = ref('')
 
@@ -84,9 +89,9 @@ async function cargarTodo() {
 
     // Prefijo/año para armar el folio real ("P-050/2026") y poder
     // buscar por él, no solo por el interno (DOC-2026-002).
-    const config = await getConfiguracion()
-    prefijoFolio.value = config.folio?.prefijo_default || 'P'
-    anioFolio.value = config.folio?.anio || new Date().getFullYear()
+    const { prefijo, anio } = folioActual(await getConfiguracion())
+    prefijoFolio.value = prefijo
+    anioFolio.value = anio
 
     cargando.value = false
 }
@@ -111,6 +116,14 @@ function faseDe(doc) {
         }
 
         return doc.estado // pendiente_subdirectora / pendiente_director / autorizado
+    }
+
+    
+    // Lo que va a RH 
+    if (enviadoARH(doc)) return 'rh'
+    if (esperaEnvioRH(doc)) {
+        if (enCorreccion(doc)) return 'c'
+        return doc.rechazadoPor ? 'r' : 'pendiente_jefeDepto' // r: lo rechazó RH
     }
 
     if (!creadoPorSecretaria(doc) && !fueCompartido(doc)) return 'normal'
@@ -152,6 +165,12 @@ function estadoBadge(doc) {
     if (fase === 'pendiente_jefeDepto' && doc.esperandoCorreccionSecretaria) {
         return { texto: 'Esperando corrección', clase: 'bg-warning-subtle text-warning' }
     }
+
+        if (fase === 'rh') {
+        const { texto, color } = estadoRH(doc)
+        return { texto, clase: `bg-${color}-subtle text-${color}` }
+    }
+
     if (fase !== 'normal') return STAGE_META[fase]
     // En fase 'normal' solo queda 'aprobado' o vacío — 'corregir' y
     // 'pendiente' ya se filtraron en fases anteriores.
@@ -213,7 +232,7 @@ async function alternarCompartir(doc) {
 
 // Solo tiene sentido si ya está compartido y no está Autorizado.
 function puedeCorregir(doc) {
-    return !!doc.visibleParaSecretaria && !autorizadoPorCadena(doc) && !esOficioDeLote(doc)
+    return !!doc.visibleParaSecretaria && !cicloCerrado(doc) && !esOficioDeLote(doc)
 }
 
 // Repetible cuantas veces haga falta. Si estaba con la Subdirectora/
@@ -260,6 +279,9 @@ async function marcarCorreccion(doc, nota) {
         if (['cancelado', 'pendiente_subdirectora', 'pendiente_director'].includes(doc.estado)) {
             cambios.estado = 'pendiente_jefeDepto'
         }
+        } else if (esParaRH(doc) && doc.estado === 'cancelado') {
+        // Corregido, vuelve a pasar por el Jefe antes de ir a RH.
+        cambios.estado = 'pendiente_jefeDepto'
     } else if (doc.estado === 'cancelado') {
         cambios.estado = 'generado'
     }
@@ -315,9 +337,9 @@ function rolDe(id) {
     return usuarios.value.find(u => String(u.id) === String(id))?.rol
 }
 
-// activeStage vive sincronizado con la URL (?fase=...) — así el
-// filtro sigue puesto al volver de VerDocumento.vue.
-const activeStage = ref(route.query.fase || null)
+// Los filtros (fase, tipo, fechas…) se recuerdan con useFiltrosGuardados,
+// más abajo, para que sigan puestos al volver de Ver/Editar/Generar.
+const activeStage = ref(null)
 
 const filtroTipo = ref('')
 
@@ -345,13 +367,22 @@ const fechaHasta = ref('')
 
 function toggleStage(valor) {
     activeStage.value = activeStage.value === valor ? null : valor
-
-    router.replace({ query: { ...route.query, fase: activeStage.value || undefined } })
 }
 
-const TAREA_ABIERTA = ['pendiente', 'elaboracion']
+// Recuerda los filtros en la dirección y en la sesión 
+const pagina = ref(1)
+const { limpiar: limpiarFiltros, hayFiltros } = useFiltrosGuardados(`filtros-bitacora-${usuarioActivo?.id}`, {
+    fase: { valor: activeStage, vacio: null, permitidos: ['tareas', 'pendiente_jefeDepto', 'r', 'pendiente_subdirectora', 'pendiente_director','rh', 'autorizado', 'c', 'x'] },
+    tipo: { valor: filtroTipo, permitidos: TIPOS_DOCUMENTO.map(t => t.valor) },
+    tarea: { valor: filtroEstadoTarea, permitidos: ['pendiente', 'elaboracion', 'finalizado', 'revisado_aprobado'] },
+    creador: { valor: creadorFiltro, vacio: 'todos', permitidos: ['todos', ...ROLES_CREADOR.map(r => r.valor)] },
+    q: { valor: busqueda },
+    desde: { valor: fechaDesde, esFecha: true },
+    hasta: { valor: fechaHasta, esFecha: true },
+    pagina: { valor: pagina, vacio: 1, esNumero: true },
+})
 
-const tareasAbiertas = computed(() => entradas.value.filter(e => TAREA_ABIERTA.includes(e.estado) && !e.documentoId))
+const tareasAbiertas = computed(() => entradas.value.filter(esTareaAbierta))
 
 const tareasEliminadas = computed(() => entradas.value.filter(e => e.estado === 'eliminado'))
 
@@ -368,6 +399,9 @@ const conteos = computed(() => ({
     pendiente_subdirectora: documentos.value.filter(d => faseDe(d) === 'pendiente_subdirectora').length,
 
     pendiente_director: documentos.value.filter(d => faseDe(d) === 'pendiente_director').length,
+
+    
+    rh: documentos.value.filter(d => faseDe(d) === 'rh').length,
 
     autorizado: documentos.value.filter(d => faseDe(d) === 'autorizado').length,
 
@@ -389,23 +423,16 @@ const filasVisibles = computed(() => {
         return tareasAbiertas.value.map(e => ({ esTarea: true, ...e }))
     }
 
-    if (filtroEstadoTarea.value === 'finalizado') {
-        // No exige tarea ligada — un doc creado directo también
-        // puede estar "Finalizado".
-        return documentos.value
-            .filter(d => d.tipo !== 'comision-externa' && faseDe(d) === 'normal' && d.revisionJefeDepto !== 'aprobado')
-            .map(d => ({ esTarea: false, ...d, fase: faseDe(d) }))
-    }
-
-    if (filtroEstadoTarea.value === 'revisado_aprobado') {
-        return documentos.value
-            .filter(d => d.tipo !== 'comision-externa' && faseDe(d) === 'normal' && d.revisionJefeDepto === 'aprobado')
-            .map(d => ({ esTarea: false, ...d, fase: faseDe(d) }))
-    }
-
     let filas
 
-    if (filtroEstadoTarea.value === 'pendiente' || filtroEstadoTarea.value === 'elaboracion') {
+    if (filtroEstadoTarea.value === 'finalizado' || filtroEstadoTarea.value === 'revisado_aprobado') {
+        
+        const conRevision = filtroEstadoTarea.value === 'revisado_aprobado'
+        filas = documentos.value
+            .filter(d => d.tipo !== 'comision-externa' && (faseDe(d) === 'normal' || d.estado === 'aceptado_rh') &&
+                (d.revisionJefeDepto === 'aprobado') === conRevision)
+                .map(d => ({ esTarea: false, ...d, fase: faseDe(d) }))
+    } else if (filtroEstadoTarea.value === 'pendiente' || filtroEstadoTarea.value === 'elaboracion') {
         filas = tareasAbiertas.value.filter(e => e.estado === filtroEstadoTarea.value).map(e => ({ esTarea: true, ...e }))
     } else {
         filas = [
@@ -428,23 +455,13 @@ const filasVisibles = computed(() => {
         filas = filas.filter(f => f.tipo === filtroTipo.value)
     }
 
-    if (busqueda.value.trim()) {
-        const q = busqueda.value.trim().toLowerCase()
-
-        filas = filas.filter(f => {
-            const folio = (f.folio || '').toLowerCase()
-
-            const nombre = f.esTarea ? f.descripcion?.toLowerCase() : personaRelevante(f).toLowerCase()
-
-            // Folio real impreso ("P-050/2026"), no el interno —
-            // buscar "50" o "P-050/2026" da el mismo resultado.
-            const oficioTexto = (!f.esTarea && f.campos?.numero_oficio)
-                ? formatearFolio(f.campos.numero_oficio, prefijoFolio.value, anioFolio.value).toLowerCase()
-                : ''
-            const folioMantenimiento = (!f.esTarea && f.campos?.folio_mantenimiento || '').toLowerCase()
-
-            return folio.includes(q) || (nombre || '').includes(q) || oficioTexto.includes(q) || folioMantenimiento.includes(q)
-        })
+    const q = normalizarBusqueda(busqueda.value)
+    if (q) {
+        filas = filas.filter(f => coincideBusqueda(f, q, {
+            nombre: f.esTarea ? f.descripcion : personaRelevante(f),
+            prefijo: prefijoFolio.value,
+            anio: anioFolio.value,
+        }))
     }
 
         // Todo en 'AAAA-MM-DD' (ver utils/fechas.js), que se compara como texto.
@@ -468,6 +485,13 @@ const filasVisibles = computed(() => {
     return filas
 })
 
+
+const POR_PAGINA = 15
+const { totalPaginas, visibles: filasPagina } = usePaginacion(filasVisibles, POR_PAGINA, {
+    pagina,
+    reiniciarCon: () => [activeStage.value, filtroTipo.value, filtroEstadoTarea.value, creadorFiltro.value, busqueda.value, fechaDesde.value, fechaHasta.value],
+})
+
 const { verDocumento, irACrearDocumento } = useNavegacionBitacora()
 
 const { comboImprimir, imprimirCombinado } = useImprimirCombinado()
@@ -484,19 +508,31 @@ function editarDocumento(doc) {
 
 async function aprobarDocumento(doc) {
     const esEstosCasos = esComisionConCadena(doc)
-    if (!confirm(`¿Aprobar ${nombreEnMensaje(doc)}${esEstosCasos && doc.estado === 'pendiente_jefeDepto' ? ' y enviarlo a la Subdirectora' : ''}?`)) return
+    const vaARH = esperaEnvioRH(doc)
+    const destino = esEstosCasos && doc.estado === 'pendiente_jefeDepto' ? ' y enviarlo a la Subdirectora'
+        : vaARH ? ', firmarlo y enviarlo a Recursos Humanos' : ''
+    if (!confirm(`¿Aprobar ${nombreEnMensaje(doc)}${destino}?`)) return
 
-    for (const d of conPareja(doc)) {
-        const cambios = { revisionJefeDepto: 'aprobado' }
+    enviandoRH.value = vaARH
+    try {
+        for (const d of conPareja(doc)) {
+            const cambios = { revisionJefeDepto: 'aprobado' }
 
-        if (esComisionConCadena(d) && d.estado === 'pendiente_jefeDepto') {
-            cambios.estado = 'pendiente_subdirectora'
+            if (esComisionConCadena(d) && d.estado === 'pendiente_jefeDepto') {
+                cambios.estado = 'pendiente_subdirectora'
+            }
+
+            await actualizarDocumento(d.id, cambios)
+
+            // Si la firma falla, se queda en Pendiente revisión para reintentar.
+            if (esperaEnvioRH(d)) await firmarYEnviarARH(d)
         }
-
-        await actualizarDocumento(d.id, cambios)
+    } catch (error) {
+        alert(error?.message || 'No se pudo firmar y enviar a Recursos Humanos.')
+    } finally {
+        enviandoRH.value = false
+        await cargarTodo()
     }
-
-    await cargarTodo()
 }
 
 function abrirRetroalimentacion(doc) {
@@ -530,6 +566,7 @@ async function confirmarRetroalimentacion(doc) {
 }
 
 async function cancelarDoc(doc) {
+    if (enviadoARH(doc) && !confirm(`${nombreDe(doc)} ya fue enviado a Recursos Humanos. ¿Seguro que quieres cancelarlo? RH lo verá como Cancelado.`)) return
     if (autorizadoPorCadena(doc)) {
         const quienAutorizo = (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)
             ? 'la Subdirectora'
@@ -719,7 +756,7 @@ async function guardarTarea() {
                             :class="activeStage === 'pendiente_subdirectora' ? 'btn-info' : 'btn-outline-info'"
                             @click="toggleStage('pendiente_subdirectora')">
 
-                            Con Subdirectora <span class="badge bg-white text-dark ms-1">{{
+                            Subdirectora <span class="badge bg-white text-dark ms-1">{{
                                 conteos.pendiente_subdirectora
                                 }}</span>
 
@@ -729,8 +766,16 @@ async function guardarTarea() {
                             :class="activeStage === 'pendiente_director' ? 'btn-info' : 'btn-outline-info'"
                             @click="toggleStage('pendiente_director')">
 
-                            Con Director <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_director
+                            Director <span class="badge bg-white text-dark ms-1">{{ conteos.pendiente_director
                                 }}</span>
+
+                        </button>
+
+                        <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'rh' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="toggleStage('rh')" title="Enviados a Recursos Humanos">
+
+                            RH <span class="badge bg-white text-dark ms-1">{{ conteos.rh }}</span>
 
                         </button>
 
@@ -763,11 +808,14 @@ async function guardarTarea() {
                 </div>
 
                 <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
-
+                    
+                    <!--  resalta lo  filtrado -->
                     <input type="text" class="form-control form-control-sm" style="max-width:260px;"
-                        placeholder="Buscar por número de oficio o nombre…" v-model="busqueda">
+                        :class="{ 'filtro-activo': busqueda }"
+                        placeholder="Folio, Nombre, No. Control…" v-model="busqueda">
 
-                    <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroTipo">
+                    <select class="form-select form-select-sm" style="width:auto; max-width:100%;" v-model="filtroTipo"
+                        :class="{ 'filtro-activo': filtroTipo }">
 
                         <option value="">Tipo de documento: todos</option>
 
@@ -775,7 +823,8 @@ async function guardarTarea() {
 
                     </select>
 
-                    <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroEstadoTarea">
+                    <select class="form-select form-select-sm" style="max-width:220px;" v-model="filtroEstadoTarea"
+                        :class="{ 'filtro-activo': filtroEstadoTarea }">
 
                         <option value="">Estado de la tarea: todos</option>
 
@@ -795,11 +844,13 @@ async function guardarTarea() {
 
                         <label class="small text-muted mb-0">Desde</label>
 
-                        <input type="date" class="form-control form-control-sm" v-model="fechaDesde">
+                        <input type="date" class="form-control form-control-sm" v-model="fechaDesde"
+                            :class="{ 'filtro-activo': fechaDesde }">
 
                         <label class="small text-muted mb-0">Hasta</label>
 
-                        <input type="date" class="form-control form-control-sm" v-model="fechaHasta">
+                        <input type="date" class="form-control form-control-sm" v-model="fechaHasta"
+                            :class="{ 'filtro-activo': fechaHasta }">
 
                     </div>
 
@@ -817,6 +868,11 @@ async function guardarTarea() {
                         :class="creadorFiltro === r.valor ? 'btn-secondary' : 'btn-outline-secondary'"
                         @click="creadorFiltro = r.valor">{{ r.etiqueta }}</button>
 
+                        
+                        <button type="button" class="btn btn-danger btn-sm ms-2" :disabled="!hayFiltros" @click="limpiarFiltros">
+                        <i class="bi bi-x-circle"></i> Limpiar filtros
+                    </button>
+
                     <!-- borrar todo de admin y sec/apo para pruebas,luego se quitara   -->
 
                     <button type="button" class="btn btn-outline-danger btn-sm ms-auto" @click="eliminarTodo">
@@ -825,6 +881,14 @@ async function guardarTarea() {
 
                 </div>
 
+            </div>
+
+            <div v-if="enviandoRH" class="aviso-procesando" role="status" aria-live="polite">
+                <div class="aviso-procesando-caja">
+                    <div class="spinner-border text-primary mb-3"></div>
+                    <div class="fw-semibold">Firmando y enviando a Recursos Humanos…</div>
+                    <div class="small text-muted mt-1">No cierres esta ventana.</div>
+                </div>
             </div>
 
             <div v-if="cargando" class="text-center py-5"><span class="spinner-border"></span></div>
@@ -861,7 +925,7 @@ async function guardarTarea() {
 
                         <tbody>
 
-                            <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
+                            <tr v-for="fila in filasPagina.filter(f => f.esTarea)" :key="'t' + fila.id">
 
                                 <td class="text-muted small">—</td>
 
@@ -918,7 +982,7 @@ async function guardarTarea() {
 
                             </tr>
 
-                            <tr v-for="fila in filasVisibles.filter(f => !f.esTarea)" :key="'d' + fila.id">
+                            <tr v-for="fila in filasPagina.filter(f => !f.esTarea)" :key="'d' + fila.id">
 
                                 <td><span class="folio-text">{{ folioRealDe(fila) || fila.folio }}</span><br><span
                                         class="text-muted small">{{
@@ -1030,8 +1094,9 @@ async function guardarTarea() {
                                              columna Estado (ver estadoBadge), aquí no hace falta
                                              repetirlo. -->
                                             <template v-if="!fila.esperandoCorreccionSecretaria">
-                                                <button v-if="creadoPorSecretaria(fila) || fueCompartido(fila)"
-                                                    class="btn btn-sm btn-outline-success" title="Aprobar"
+                                                <button v-if="creadoPorSecretaria(fila) || fueCompartido(fila) || esperaEnvioRH(fila)"
+                                                    class="btn btn-sm btn-outline-success" :disabled="enviandoRH"
+                                                    :title="esperaEnvioRH(fila) ? 'Aprobar, firmar y enviar a RH' : 'Aprobar'"
                                                     @click="aprobarDocumento(fila)"><i
                                                         class="bi bi-check-lg"></i></button>
 
@@ -1095,11 +1160,7 @@ async function guardarTarea() {
 
                                         </template>
 
-                                        <template v-else-if="fila.fase === 'autorizado'">
-
-                                            <button class="btn btn-sm btn-outline-primary" disabled
-                                                title="Disponible cuando esté conectada la firma digital"><i
-                                                    class="bi bi-download"></i></button>
+                                        <template v-else-if="fila.fase === 'autorizado' || fila.fase === 'rh'">
 
                                             <CompartirAcciones :doc="fila" :puede-compartir="puedeCompartir(fila)"
                                                 :puede-corregir="puedeCorregir(fila)"
@@ -1235,6 +1296,10 @@ async function guardarTarea() {
 
                     </table>
 
+                </div>
+
+                <div class="px-3 pb-2">
+                    <Paginacion v-model:pagina="pagina" :total="totalPaginas" :elementos="filasVisibles.length" :por-pagina="POR_PAGINA" />
                 </div>
 
             </section>
@@ -1374,4 +1439,24 @@ async function guardarTarea() {
     font-weight: 700;
     font-size: 0.85rem;
 }
+.aviso-procesando {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.aviso-procesando-caja {
+    min-width: 280px;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    text-align: center;
+    background: var(--admin-surface);
+    color: var(--admin-text);
+    box-shadow: var(--admin-shadow-lg);
+}
+
 </style>

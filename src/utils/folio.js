@@ -10,13 +10,41 @@ export function formatearFolio(numero, prefijo, anio) {
 }
 
 
+export function folioActual(config) {
+    return {
+        prefijo: config?.folio?.prefijo_default || 'P',
+        anio: config?.folio?.anio || new Date().getFullYear(),
+    }
+}
+
 // para armar "MEMORANDUM NO: P-084/2026" u "Oficio No. P-040/2026" 
 // compartida entre bitacora y bitacorasecapo
 
-export function folioRealDe(doc, prefijo, anio) {
+export function datosFolioDe(doc, prefijoActual, anioActual) {
+    const c = doc?.campos || {}
+    const anioCreacion = Number(String(doc?.fecha || '').split('/')[2]) || null
+    return {
+        prefijo: c.prefijo_folio || prefijoActual,
+        anio: Number(c.anio_folio) || anioCreacion || anioActual,
+    }
+}
+
+
+export function folioDelDocumento(doc, prefijoActual, anioActual) {
     const numero = doc?.campos?.numero_oficio
-    if (!numero) return null
-    const texto = formatearFolio(numero, prefijo, anio)
+    if (!numero) return ''
+    const { prefijo, anio } = datosFolioDe(doc, prefijoActual, anioActual)
+    return formatearFolio(numero, prefijo, anio)
+}
+
+
+export function camposDeFolio({ numero, anio, prefijo }) {
+    return { numero_oficio: numero, anio_folio: anio, prefijo_folio: prefijo }
+}
+
+export function folioRealDe(doc, prefijo, anio) {
+    const texto = folioDelDocumento(doc, prefijo, anio)
+    if (!texto) return null
     return doc.tipo?.startsWith('memorandum') ? `MEMORANDUM NO: ${texto}` : `Oficio No. ${texto}`
 }
 

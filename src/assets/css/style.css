@@ -132,6 +132,87 @@
   color: #000;
 }
 
+
+
+
+
+/* resalatar filtro de las bitacoras*/
+.form-control.filtro-activo,
+.form-select.filtro-activo {
+  border-color: #0d6efd !important;
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.35) !important;
+  background-color: rgba(13, 110, 253, 0.08);
+  font-weight: 600;
+}
+
+
+/* oficio de compactacion */
+.hojas-oficio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+.bloque-oficio {
+  display: flow-root; 
+}
+.tabla-compactacion {
+  width: 100%;
+  table-layout: fixed; 
+  border-collapse: collapse;
+  margin: 0;
+}
+.tabla-compactacion th {
+  text-align: center;
+}
+.tabla-compactacion td {
+  text-align: left; 
+}
+.tabla-compactacion th,
+.tabla-compactacion td {
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+
+.tabla-compactacion .col-nombre { width: 31%; }
+.tabla-compactacion .col-horario { width: 12%; }
+.tabla-compactacion .col-fecha { width: 11%; }
+.tabla-compactacion .doc-celda {
+  padding: 3px 4px; 
+}
+
+@media print {
+
+
+  .container-fluid:has(.hojas-oficio),
+  .row:has(.hojas-oficio),
+  .col-12:has(.hojas-oficio) {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .hojas-oficio {
+    display: block !important;
+  }
+  .hoja-oficio {
+    height: 279mm !important;
+    min-height: 279mm !important;
+    overflow: hidden !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+  }
+  .hoja-oficio:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
+
+
+
 @media screen {
   .mantenimiento-pie-fijo {
     margin-top: auto;
@@ -1645,4 +1726,432 @@ html[data-theme="dark"] {
     width: 90px;
     height: 90px;
     display: inline-block;
+}
+
+/*  estadisticas  */
+
+.pestanas-estadisticas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.pestanas-estadisticas .pestana {
+  min-height: 44px;
+  padding: 0 18px;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--admin-muted);
+  font-weight: 600;
+}
+
+.pestanas-estadisticas .pestana:hover {
+  color: var(--admin-text);
+}
+
+.pestanas-estadisticas .pestana.activa {
+  border-bottom-color: var(--admin-primary);
+  color: var(--admin-primary);
+  font-weight: 700;
+}
+
+
+.filtro-compacto {
+  width: auto;
+  max-width: 190px;
+}
+
+
+.resumen-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+}
+
+.resumen-datos > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.resumen-datos strong {
+  font-size: 1.9rem;
+  line-height: 1.15;
+  color: var(--admin-text);
+}
+
+
+.resumen-datos strong.dato-texto {
+  max-width: 600px;
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+.resumen-datos span {
+  font-size: 0.85rem;
+  color: var(--admin-muted);
+}
+
+
+.titulo-seccion {
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+
+.grafica-barras {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.grafica-columna {
+  flex: 1 1 0;
+  min-width: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.grafica-valor {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.grafica-barra {
+  width: 100%;
+  max-width: 46px;
+  border-radius: 6px 6px 0 0;
+  background: color-mix(in srgb, var(--admin-primary) 55%, transparent);
+}
+
+.grafica-barra.fuerte {
+  background: var(--admin-primary);
+}
+
+.grafica-barra.vacia {
+  background: var(--admin-border);
+}
+
+
+.grafica-barra.apilada {
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  background: none;
+}
+
+.grafica-barra.apilada span {
+  flex-basis: 0;
+}
+
+.parte-fuerte {
+  background: var(--admin-primary);
+}
+
+.parte-clara {
+  background: color-mix(in srgb, var(--admin-primary) 40%, transparent);
+}
+
+.grafica-grupo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.grafica-grupo.atenuada {
+  opacity: 0.45;
+}
+
+.grafica-subcolumna {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 46px;
+}
+
+.leyenda-color {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 3px;
+  vertical-align: baseline;
+}
+
+.grafica-etiqueta {
+  min-height: 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--admin-muted);
+  white-space: nowrap;
+}
+
+
+.lista-barras {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lista-barras-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "nombre numero"
+    "pista pista";
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-text);
+  text-align: left;
+}
+
+.lista-barras-fila:hover {
+  background: color-mix(in srgb, var(--admin-primary) 6%, transparent);
+}
+
+.lista-barras-fila.activa .lista-barras-nombre {
+  color: var(--admin-primary);
+  font-weight: 700;
+}
+
+.lista-barras-nombre {
+  grid-area: nombre;
+}
+
+.lista-barras-numero {
+  grid-area: numero;
+}
+
+.lista-barras-pista {
+  grid-area: pista;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--admin-primary) 12%, transparent);
+}
+
+.lista-barras-pista span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--admin-primary);
+}
+
+
+.lista-conteo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-conteo li + li {
+  border-top: 1px solid var(--admin-border);
+}
+
+.lista-conteo-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  color: var(--admin-text);
+  text-align: left;
+}
+
+.lista-conteo-fila.clicable {
+  border-radius: 6px;
+}
+
+.lista-conteo-fila.clicable:hover {
+  background: color-mix(in srgb, var(--admin-primary) 6%, transparent);
+}
+
+.lista-conteo-fila.clicable:hover .lista-conteo-titulo {
+  color: var(--admin-primary);
+}
+
+.lista-conteo-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lista-conteo-titulo {
+  font-weight: 600;
+}
+
+.lista-conteo-detalle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+}
+
+.lista-conteo-numero {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+
+
+.selector-calendario {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.boton-calendario {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.boton-periodo {
+  min-width: 230px;
+  justify-content: center;
+}
+
+.calendario-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+}
+
+.calendario-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1051;
+  width: 296px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-lg);
+  color: var(--admin-text);
+}
+
+.calendario-popover-dias {
+  width: 316px;
+}
+
+.calendario-encabezado,
+.calendario-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-left: 6px;
+}
+
+.calendario-pie {
+  padding-top: 8px;
+  border-top: 1px solid var(--admin-border);
+}
+
+.calendario-flecha {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-text);
+}
+
+.calendario-rejilla {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calendario-dias-semana,
+.calendario-semana {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.calendario-dias-semana {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--admin-muted);
+}
+
+.calendario-celda {
+  height: 56px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--admin-text);
+}
+
+.calendario-dia {
+  height: 40px;
+  border-radius: 999px;
+}
+
+.calendario-celda.fuera {
+  color: var(--admin-muted);
+}
+
+.calendario-celda.hoy {
+  border-color: var(--admin-primary);
+  font-weight: 700;
+}
+
+.calendario-celda.seleccionado {
+  background: var(--admin-primary);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+
+.calendario-celda.banda {
+  border-radius: 8px;
+}
+
+.calendario-celda.banda.seleccionado {
+  background: color-mix(in srgb, var(--admin-primary) 22%, transparent);
+  color: var(--admin-text);
+}
+
+.calendario-celda:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.calendario-flecha:hover,
+.calendario-celda:not(:disabled):not(.seleccionado):hover,
+.calendario-semana.por-semana:hover .calendario-celda:not(:disabled) {
+  background: color-mix(in srgb, var(--admin-primary) 12%, transparent);
 }

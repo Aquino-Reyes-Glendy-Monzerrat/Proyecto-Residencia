@@ -6,7 +6,7 @@
 import { ref, computed } from "vue";
 import { useFolio } from "./UseFolio.js";
 import { agregarDocumento, actualizarDocumento } from "../services/api.js";
-import { formatearFolio } from "@/utils/folio.js";
+import { formatearFolio, camposDeFolio } from "@/utils/folio.js";
 import { fechaHoy } from "@/utils/fechas.js";
 
 export function useMemosJuntos(
@@ -16,7 +16,11 @@ export function useMemosJuntos(
 ) {
     const combinarIncidencias = ref(false);
     const motivo2 = ref("");
-        const fecha2 = ref(fechaHoy()); 
+    const fecha2 = ref(fechaHoy());
+
+    // tipo (catalogo, opcional) y fecha de la  incidencia 2.
+    const tipo2 = ref("");
+    const fechaIncidencia2 = ref("");
 
     const {
         folioSeleccionado: folioSeleccionado2,
@@ -60,7 +64,7 @@ export function useMemosJuntos(
         primerDocumentoId,
         datosBase,
         htmlSegundo,
-        numeroOficio2,
+        folio2,
     ) {
         const creado = await agregarDocumento({
             ...datosBase,
@@ -68,8 +72,10 @@ export function useMemosJuntos(
             campos: {
                 ...datosBase.campos,
                 motivo: motivo2.value,
+                tipo_incidencia: tipo2.value,
+                fecha_incidencia: fechaIncidencia2.value,
                 fecha_documento: fecha2.value,
-                numero_oficio: numeroOficio2,
+                ...camposDeFolio(folio2),
             },
             vinculadoCon: primerDocumentoId,
         });
@@ -80,6 +86,8 @@ export function useMemosJuntos(
     function limpiarCombo() {
         combinarIncidencias.value = false;
         motivo2.value = "";
+        tipo2.value = "";
+        fechaIncidencia2.value = "";
         fecha2.value = fechaHoy();
         folioSeleccionado2.value = "automatico";
         mostrarReservados2.value = false;
@@ -89,6 +97,8 @@ export function useMemosJuntos(
         combinarIncidencias,
         motivo2,
         fecha2,
+        tipo2,
+        fechaIncidencia2,
         folioSeleccionado2,
         mostrarReservados2,
         folioMostradoTexto2,

@@ -28,9 +28,16 @@ const { usuarioActivo: usuario } = useSesion()
                 <span class="nav-text">Bandeja de autorización</span>
             </RouterLink>
 
-            <!-- todos los roles (excepto sub y dir) -->
+            <!-- Recursos Humanos -->
 
-            <RouterLink v-if="usuario && !['director', 'subdirectora'].includes(usuario.rol)" class="nav-link"
+            <RouterLink v-if="usuario && usuario.rol === 'rh'" class="nav-link" to="/bandejarh" active-class="active">
+                <span class="nav-icon"><i class="bi bi-inbox"></i></span>
+                <span class="nav-text">Documentos recibidos</span>
+            </RouterLink>
+
+            <!-- quienes elaboran documentos -->
+
+            <RouterLink v-if="usuario && ['admin', 'secretaria', 'apoyo'].includes(usuario.rol)" class="nav-link"
                 to="/dashboard" active-class="active">
                 <span class="nav-icon"><i class="bi bi-file-earmark-plus"></i></span>
                 <span class="nav-text">Nuevo Documento</span>
@@ -43,6 +50,13 @@ const { usuarioActivo: usuario } = useSesion()
             <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/bitacora" active-class="active">
                 <span class="nav-icon"><i class="bi bi-clipboard2-minus"></i></span>
                 <span class="nav-text">Bitácora</span>
+            </RouterLink>
+
+            
+            <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/estadisticas"
+                active-class="active">
+                <span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>
+                <span class="nav-text">Estadísticas</span>
             </RouterLink>
 
             <RouterLink v-if="usuario && usuario.rol === 'admin'" class="nav-link" to="/editarPlantilla"

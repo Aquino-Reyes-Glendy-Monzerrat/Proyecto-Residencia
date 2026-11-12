@@ -16,7 +16,7 @@ defineEmits(['compartir', 'corregir'])
 const tituloCompartir = computed(() => {
     const permiso = (autorizadoPorCadena(props.doc) || esOficioDeLote(props.doc)) ? 'ver e imprimir' : 'ver y editar'
     return props.doc.visibleParaSecretaria
-        ? `Compartido con Secretaria (puede ${permiso}) — clic para ocultarlo`
+        ? `Compartido con Secretaria (puede ${permiso}) clic para ocultarlo`
         : `Compartir con Secretaria (podrá ${permiso})`
 })
 
@@ -29,7 +29,7 @@ const tituloCompartir = computed(() => {
         <i class="bi bi-share"></i>
     </button>
     <button v-if="puedeCorregir" class="btn btn-sm btn-outline-warning"
-        title="Pedir corrección — envía una nota explicando qué corregir" @click="$emit('corregir')">
+        title="Pedir corrección, envía una nota explicando qué corregir" @click="$emit('corregir')">
         <i class="bi bi-chat-left-text"></i>
     </button>
 </template>

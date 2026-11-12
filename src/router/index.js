@@ -17,10 +17,14 @@ import Docentes from "@/views/Docentes.vue";
 import BandejaAprobacion from "@/views/BandejaAprobacion.vue";
 import Horarios from "@/views/Horarios.vue";
 import Tutorias from "@/views/Tutorias.vue";
+import Estadisticas from "@/views/Estadisticas.vue";
+import BandejaRH from "@/views/BandejaRH.vue";
 
 // Pantalla de inicio de cada rol 
 export function inicioDe(rol) {
-  return ["director", "subdirectora"].includes(rol) ? "bandejaaprobacion" : "dashboard";
+  if (["director", "subdirectora"].includes(rol)) return "bandejaaprobacion";
+  if (rol === "rh") return "bandejarh";
+  return "dashboard";
 }
 
 
@@ -54,6 +58,7 @@ const routes = [
     { path: "/catalogo", name: "catalogo", component: Catalogo },
     { path: "/horarios", name: "horarios", component: Horarios },
     { path: "/tutorias", name: "tutorias", component: Tutorias },
+    { path: "/estadisticas", name: "estadisticas", component: Estadisticas },
   ]),
 
   // sec y apo
@@ -64,6 +69,13 @@ const routes = [
   // dir /sub
   ...soloPara(["director", "subdirectora"], [
     { path: "/bandejaaprobacion", name: "bandejaaprobacion", component: BandejaAprobacion },
+  ]),
+
+  
+  //rh 
+  ...soloPara(["rh"], [
+    { path: "/bandejarh", name: "bandejarh", component: BandejaRH },
+    { path: "/bandejarh/ver/:id", name: "ver-documento-rh", component: VerDocumento },
   ]),
 
   {

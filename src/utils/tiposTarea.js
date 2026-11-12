@@ -10,18 +10,35 @@ export const TIPOS_TAREA = {
     'Terminación Servicio Social': { ruta: 'terminacion', subtipo: 'terminacion-servicio-social' },
     'Terminación de Residencia': { ruta: 'terminacion', subtipo: 'terminacion-residencia' },
     'Oficio de revisión': { ruta: 'revision-tesis' },
-    'Memorándum': { ruta: 'memorandum' },
+    'Memorándum: Solventación de faltas': { ruta: 'memorandum', subtipo: 'memorandum-solventacion-faltas' },
+    'Memorándum: Compactación (un docente)': { ruta: 'memorandum', subtipo: 'memorandum-compactacion-horario' },
+    
+    'Compactación concentrado (varios docentes)': { ruta: 'memorandum', subtipo: 'memorandum-compactacion-horario', modo: 'varios' },
     'Otros': { ruta: 'otros' },
     'Solicitud de Mantenimiento': { ruta: 'mantenimiento' },
-    'Constancia Créditos de Tutoría': { ruta: 'constancia-tutorado' },
+    'Constancia de Tutoría': { ruta: 'constancia-creditos', subtipo: 'constancia-tutorado' },
+    'Constancia de Actividad Complementaria': { ruta: 'constancia-creditos', subtipo: 'constancia-actividad' },
 }
 
-// URL del formulario para cumplir una tarea, o null si su tipo no
-// existe (tarea vieja con un tipo que ya se quitó).
+
+
+
+
 export function rutaParaTarea(entrada) {
-    const t = TIPOS_TAREA[entrada.tipo]
+    const t = TIPOS_TAREA[entrada.tipo] || TIPOS_TAREA_ANTERIORES[entrada.tipo]
     if (!t) return null
     const query = new URLSearchParams({ bitacoraId: entrada.id })
     if (t.subtipo) query.set('subtipo', t.subtipo)
+    if (t.modo) query.set('modo', t.modo)
     return `/nuevo-documento/${t.ruta}?${query}`
+}
+
+
+// Una tarea sigue abierta mientras está pendiente o en elaboración y
+// todavía no tiene documento ligado. Lo usan Bitacora, BitacoraSecApo
+// y la campanita 
+const TAREA_ABIERTA = ['pendiente', 'elaboracion']
+
+export function esTareaAbierta(tarea) {
+    return TAREA_ABIERTA.includes(tarea.estado) && !tarea.documentoId
 }

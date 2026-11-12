@@ -26,6 +26,9 @@ export function useSesion() {
     // Cierra la sesión (para el botón de salir cuando se conecte).
     function cerrarSesion() {
         localStorage.removeItem('usuarioActivo')
+        Object.keys(sessionStorage)
+            .filter(clave => clave.startsWith('filtros-') || clave.startsWith('aviso-'))
+            .forEach(clave => sessionStorage.removeItem(clave))
     }
 
     return {

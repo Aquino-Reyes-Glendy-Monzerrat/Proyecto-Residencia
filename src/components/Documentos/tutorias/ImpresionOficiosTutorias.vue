@@ -7,7 +7,7 @@
 // Los cancelados nunca salen.
 import { ref, computed, onMounted } from 'vue'
 import { getDocumentos, getConfiguracion, eliminarDocumento } from '@/services/api.js'
-import { formatearFolio, imprimirConTitulo } from '@/utils/folio.js'
+import { folioDelDocumento, imprimirConTitulo,folioActual } from '@/utils/folio.js'
 import { estiloDe, variablesDeEstilo } from '@/utils/estiloDocumento.js'
 import { esDelPeriodo, etiquetaPeriodo } from '@/utils/periodosTutoria.js'
 
@@ -27,7 +27,7 @@ const todos = ref([])          // oficios de Tutorías que se pueden mostrar
 const seleccion = ref(null)    // { periodo, anio }
 const borrando = ref(false)
 
-const anioSinDato = computed(() => config.value?.folio?.anio || new Date().getFullYear())
+const anioSinDato = computed(() => folioActual(config.value).anio)
 
 const periodoDe = (d) => ({ periodo: d.campos?.periodo, anio: Number(d.campos?.anio_periodo ?? anioSinDato.value) })
 const claveDe = ({ periodo, anio }) => `${periodo}|${anio}`
@@ -76,9 +76,11 @@ async function borrarOficios() {
     if (lista.length === 0) return
     const prefijo = config.value?.folio?.prefijo_default || 'P'
     const anioFolio = config.value?.folio?.anio || new Date().getFullYear()
-    const numeros = lista.map(d => Number(d.campos?.numero_oficio)).filter(n => n > 0).sort((a, b) => a - b)
-    const rango = numeros.length
-        ? `Folios: ${formatearFolio(numeros[0], prefijo, anioFolio)}${numeros.length > 1 ? ` a ${formatearFolio(numeros[numeros.length - 1], prefijo, anioFolio)}` : ''}\n`
+    const conFolio = lista.filter(d => Number(d.campos?.numero_oficio) > 0)
+        .sort((a, b) => Number(a.campos.numero_oficio) - Number(b.campos.numero_oficio))
+    const folio = (d) => folioDelDocumento(d, prefijo, anioFolio)
+    const rango = conFolio.length
+        ? `Folios: ${folio(conFolio[0])}${conFolio.length > 1 ? ` a ${folio(conFolio[conFolio.length - 1])}` : ''}\n`
         : ''
     if (!confirm(`¿Borrar los ${lista.length} oficio(s) de tutoría de ${titulo.value}?\n${rango}\nLos grupos y tutores NO se tocan.\nLos números de folio ya usados no se reutilizan.\n\nEsta acción no se puede deshacer.`)) return
     borrando.value = true
@@ -100,7 +102,7 @@ function imprimirTodos() {
         <div class="no-print d-flex flex-wrap gap-2 justify-content-between align-items-center p-3 border-bottom bg-dark">
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <h6 class="text-white m-0">
-                    Tutorías<template v-if="!soloCompartidos"> — {{ titulo }}</template>
+                    Tutorías <template v-if="!soloCompartidos">  {{ titulo }}</template>
                     <span class="text-white-50 small">
                         ({{ documentos.length }} documento{{ documentos.length === 1 ? '' : 's' }})
                     </span>
@@ -112,7 +114,7 @@ function imprimirTodos() {
                     </option>
                 </select>
                 <span v-if="soloCompartidos" class="badge text-bg-secondary">
-                    <i class="bi bi-eye me-1"></i>Solo ver e imprimir
+                    
                 </span>
             </div>
 
@@ -128,7 +130,7 @@ function imprimirTodos() {
                     <i class="bi bi-x-lg"></i> Cerrar
                 </button>
                 <button class="btn btn-primary btn-sm" :disabled="documentos.length === 0" @click="imprimirTodos">
-                    <i class="bi bi-printer me-1"></i> Imprimir / Guardar PDF (todos)
+                    <i class="bi bi-printer me-1"></i> Imprimir / Guardar PDF 
                 </button>
             </div>
         </div>

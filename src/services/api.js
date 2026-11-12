@@ -1,10 +1,10 @@
 import axios from "axios";
 import { generarHashFirma } from './hash.js'
 
-//const BASE_URL = "http://localhost:3000";
+const BASE_URL = "http://localhost:3000";
 
 //para conectar con render
-const BASE_URL = 'https://proyecto-residencia.onrender.com'
+//const BASE_URL = 'https://proyecto-residencia.onrender.com'
 
 // ─── BASE: operaciones comunes de cualquier colección ───
 // Si lo que se quiere borrar ya no existe (404), no es error: el
@@ -288,7 +288,23 @@ const ccpOpciones = crearCrud("ccp_opciones");
 export const getCcpOpciones = ccpOpciones.listar;
 export const agregarCcpOpcion = ccpOpciones.agregar;
 export const actualizarCcpOpcion = ccpOpciones.actualizar;
+
 export const eliminarCcpOpcion = ccpOpciones.eliminar;
+
+// tipos de incidencia 
+const tiposIncidencia = crearCrud("tipos_incidencia");
+export const getTiposIncidencia = tiposIncidencia.listar;
+export const agregarTipoIncidencia = tiposIncidencia.agregar;
+export const actualizarTipoIncidencia = tiposIncidencia.actualizar;
+export const eliminarTipoIncidencia = tiposIncidencia.eliminar;
+
+
+// tipos de actividad complementaria cursos,eventos ,etc
+const actividadesComplementarias = crearCrud("actividades_complementarias");
+export const getActividadesComplementarias = actividadesComplementarias.listar;
+export const agregarActividadComplementaria = actividadesComplementarias.agregar;
+export const actualizarActividadComplementaria = actividadesComplementarias.actualizar;
+export const eliminarActividadComplementaria = actividadesComplementarias.eliminar;
 
 const gruposTutoria = crearCrud("gruposTutoria");
 export const getGruposTutoria = gruposTutoria.listar;
@@ -405,6 +421,41 @@ export async function cancelarDocumento(id, motivoCancelacion) {
         // instrucción de corrección que ya no aplica
         observacionJefeDepto: "",
         notaAlCompartir: "",
+    });
+}
+
+
+// >Recursos humanos 
+export async function enviarDocumentoARH(id) {
+    return documentos.actualizar(id, {
+        estado: "enviado_rh",
+        enviadoRH: true,
+        fechaEnvioRH: new Date().toISOString(),
+        fechaAceptadoRH: "",
+        observacionRH: "",
+        fechaObservacionRH: "",
+        rechazadoPor: "",
+        observaciones: "",
+    });
+}
+
+export async function getDocumentosEnviadosRH() {
+    const res = await axios.get(`${BASE_URL}/documentos?enviadoRH=true`);
+    return res.data;
+}
+
+export async function aceptarEnRH(id) {
+    return documentos.actualizar(id, { estado: "aceptado_rh", fechaAceptadoRH: new Date().toISOString() });
+}
+
+
+export async function rechazarEnRH(id, observacion) {
+    return documentos.actualizar(id, {
+        estado: "pendiente_jefeDepto",
+        rechazadoPor: "Recursos Humanos",
+        observaciones: observacion,
+        observacionRH: observacion,
+        fechaObservacionRH: new Date().toISOString(),
     });
 }
 

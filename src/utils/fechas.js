@@ -37,7 +37,7 @@ const DIAS_EN_LETRAS = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'sie
     'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho',
     'diecinueve', 'veinte', 'veintiún', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco',
     'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve', 'treinta', 'treinta y un']
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
     'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 export function fechaEnLetras(fechaStr) {
@@ -46,4 +46,12 @@ export function fechaEnLetras(fechaStr) {
     const dia = fecha.getDate()
     const inicio = dia === 1 ? 'al primer día' : `a los ${DIAS_EN_LETRAS[dia]} días`
     return `${inicio} del mes de ${MESES[fecha.getMonth()]} de ${fecha.getFullYear()}`
+}
+
+
+// AAAA-MM-DD ,11 de mayo de 2026 fecha dentro del texto de un oficio
+export function fechaLarga(fechaStr) {
+    if (!fechaStr) return ''
+    const fecha = new Date(fechaStr + 'T00:00:00')
+    return `${fecha.getDate()} de ${MESES[fecha.getMonth()]} de ${fecha.getFullYear()}`
 }

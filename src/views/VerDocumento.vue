@@ -1,10 +1,11 @@
 <script setup>
 import AdminLayout from '@/layout/AdminLayout.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getDocumentoPorId, getConfiguracion } from '../services/api.js'
-import { folioRealDe, imprimirConNombre } from '@/utils/folio.js'
+import { folioRealDe, imprimirConNombre,folioActual } from '@/utils/folio.js'
 import { estiloDe, variablesDeEstilo } from '@/utils/estiloDocumento.js'
+import { TIPO_OFICIO_COMPACTACION } from '@/utils/oficioCompactacion.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +14,7 @@ const config = ref(null)
 const cargando = ref(true)
 
 const noEncontrado = ref(false)
+const folioVigente = computed(() => folioActual(config.value))
 
 onMounted(async () => {
     cargando.value = true
@@ -49,7 +51,7 @@ function imprimir() {
         </div>
         <div v-else>
             <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-                <h5 class="m-0">{{ folioRealDe(doc, config?.folio?.prefijo_default, config?.folio?.anio) }}</h5>
+                <h5 class="m-0">{{folioRealDe(doc, folioVigente.prefijo, folioVigente.anio) }}</h5>
                 <div class="d-flex gap-2">
                     <button class="btn btn-success" @click="router.back()">
                         <i class="bi bi-arrow-left"></i> Volver
@@ -59,7 +61,11 @@ function imprimir() {
                     </button>
                 </div>
             </div>
-            <div class="bg-white border rounded p-4 documento-carta" style="color:#333;"
+            
+            <!-- oficio d ecompactacion sus logos y hojas-->
+            <div v-if="doc?.tipo === TIPO_OFICIO_COMPACTACION" class="hojas-oficio" style="color:#333;"
+                :style="variablesDeEstilo(estiloDe(doc, config))" v-html="doc?.cuerpo"></div>
+            <div v-else class="bg-white border rounded p-4 documento-carta" style="color:#333;"
                 :style="variablesDeEstilo(estiloDe(doc, config))" v-html="doc?.cuerpo"></div>
         </div>
 

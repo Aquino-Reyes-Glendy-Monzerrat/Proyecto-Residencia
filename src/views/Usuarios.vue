@@ -43,7 +43,7 @@ async function guardarUsuario() {
         email: nuevoUsuario.value.email,
         password: nuevoUsuario.value.password,
         rol: nuevoUsuario.value.rol,
-        estado: 'aprobado'
+        estado: 'activo'
     })
     usuarios.value.push(usuario)
     cerrarModalNuevo()
@@ -136,12 +136,13 @@ async function eliminar(usuario) {
                                     <option value="admin">Admin</option>
                                     <option value="secretaria">Secretaria</option>
                                     <option value="apoyo">Apoyo</option>
+                                    <option value="rh">Recursos Humanos</option>
                                 </select>
                             </td>
                             <td>
                                 <span v-if="usuario.estado === 'activo'"
                                     class="badge bg-success-subtle text-success">Activo</span>
-                                <span v-if="usuario.estado === 'inactivo'"
+                                    <span v-else
                                     class="badge bg-secondary-subtle text-secondary">Inactivo</span>
                             </td>
 
@@ -163,7 +164,7 @@ async function eliminar(usuario) {
                                         class="btn btn-sm btn-outline-danger" @click="desactivar(usuario)">
                                         <i class="bi bi-person-x"></i> Desactivar
                                     </button>
-                                    <button v-if="usuario.estado === 'inactivo'" type="button"
+                                    <button v-else type="button"
                                         class="btn btn-sm btn-outline-success" @click="reactivar(usuario)">
                                         <i class="bi bi-person-check"></i> Reactivar
                                     </button>
@@ -229,6 +230,7 @@ async function eliminar(usuario) {
                                 <option value="admin">Admin</option>
                                 <option value="secretaria">Secretaria</option>
                                 <option value="apoyo">Apoyo</option>
+                                <option value="rh">Recursos Humanos</option>
                             </select>
                         </div>
                     </div>

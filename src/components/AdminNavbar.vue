@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { useSesion } from '../composables/UseSesion.js'
+import CampanaTareas from './CampanaTareas.vue'
 
 defineProps({
     mostrarVolver: { type: Boolean, default: false }
@@ -10,6 +11,9 @@ defineProps({
 const router = useRouter()
 const { usuarioActivo: usuario, cerrarSesion: limpiarSesion } = useSesion()
 const dropdownAbierto = ref(false)
+
+
+const conTareas = ['admin', 'secretaria', 'apoyo'].includes(usuario?.rol)
 
 function toggleDropdown() {
     dropdownAbierto.value = !dropdownAbierto.value
@@ -41,7 +45,7 @@ function cerrarSesion() {
                     <i class="bi bi-moon-stars" data-theme-icon aria-hidden="true"></i>
                 </button>
 
-
+                <CampanaTareas v-if="conTareas" :usuario="usuario" />
                 <div class="dropdown" :class="{ show: dropdownAbierto }">
                     <button class="profile-button" type="button" @click="toggleDropdown">
                         <i class="bi bi-person-circle" style="font-size: 1.5rem;" aria-hidden="true"></i>

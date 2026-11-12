@@ -17,9 +17,10 @@ const documentos = [
     { tipo: 'terminacion', nombre: 'Carta de Terminación', icono: 'bi-check2-circle' },
     { tipo: 'revision-tesis', nombre: 'Oficio de Revisión', icono: 'bi-eye' },
     { tipo: 'memorandum', nombre: 'Memorándum', icono: 'bi-file-text' },
+    { tipo: 'oficio-compactacion', nombre: 'Oficio de Compactación de Horario', icono: 'bi-table' },
     { tipo: 'mantenimiento', nombre: 'Solicitud de Mantenimiento', icono: 'bi-tools' },
     { tipo: 'otros', nombre: 'Otros', icono: 'bi-journal-text' },
-    { tipo: 'constancia-tutorado', nombre: 'Constancia Créditos de Tutoría', icono: 'bi-award' },
+    { tipo: 'constancia-creditos', nombre: 'Constancias de Créditos Complementarios', icono: 'bi-award' },
 ]
 
 </script>

@@ -27,6 +27,7 @@ export const EJEMPLOS_CAMPOS = {
     nombre_programa: "Ingeniería en Sistemas Computacionales",
     nombre_proyecto: "Sistema de Gestión Documental",
     nombre_solicitante: "María Fernanda López Chan",
+    incidencia_texto: "presentó falta por omisión de registro de entrada el día <strong>11 de mayo de 2026</strong>, ",
     numero_control: "21390816",
     periodo_texto: "agosto - diciembre 2026",
     rango_fechas:
@@ -36,8 +37,13 @@ export const EJEMPLOS_CAMPOS = {
     nombrado_texto: "nombrado(a)",
     grupos_carrera: "del grupo K2U de la carrera INGENIERÍA EN TECNOLOGÍAS DE LA INFORMACIÓN Y COMUNICACIONES",
     nombre_jefe_depto: "DR. MANUEL ABRAHAM ZAPATA ENCALADA",
+    nombre_docente_constancia: "LIC. DIEGO AURELIO MIAM LOPEZ",
     periodo_escolar_texto: "enero-junio 2026",
     fecha_letras: "a los seis días del mes de enero de 2026",
+    creditos_texto: "1 crédito",
+    actividad_texto: "CURSOS EN LÍNEA: FUNDAMENTOS DE ESTRUCTURA DE DATOS",
+    desempeno_texto: "NOTABLE",
+    valor_numerico_texto: "3",
 };
 
 export const EJEMPLOS_POR_PLANTILLA = {
@@ -46,7 +52,7 @@ export const EJEMPLOS_POR_PLANTILLA = {
             "asistir a una reunión de trabajo relacionada con el módulo de especialidad de las carreras",
     },
     "memorandum-solventacion-faltas": {
-        motivo: "se encontraba en asesorías con sus alumnos de residencias",
-    },
+        motivo: "debido a olvido de su tarjeta.",
+        },
 };
 

@@ -1,7 +1,5 @@
 <script setup>
-// Vista previa de la Constancia de tutorado: encabezado DEPENDENCIA,
-// destinatario (Servicios Escolares), cuerpo de la plantilla y dos
-// firmas: docente tutor (Atentamente) y Jefe de Depto. (V. b.).
+// Vista previa de la Constancia creditos tutoria
 import { computed } from 'vue'
 import { encabezadoDependenciaHTML, destinatarioHTML } from '@/utils/encabezadoOficio.js'
 
@@ -13,6 +11,7 @@ const props = defineProps({
     destinatario: { type: Object, default: null },
     jefe: { type: Object, default: null },
     notaCcp: { type: String, default: '' },
+    esActividad: { type: Boolean, default: false },
 })
 
 const encabezado = computed(() => encabezadoDependenciaHTML({
@@ -26,9 +25,11 @@ const destinatario = computed(() => destinatarioHTML([
     props.destinatario?.puesto,
 ]))
 
-const nombreTutor = computed(() =>
-    [props.campos.grado_tutor, props.campos.nombre_tutor].filter(Boolean).join(' ').toUpperCase() || '[Docente tutor]')
-</script>
+
+const nombreTutor = computed(() => props.campos.nombre_docente_constancia
+    || (props.esActividad ? '[Docente responsable]' : '[Docente tutor]'))
+    
+    </script>
 
 <template>
     <div>
@@ -39,8 +40,8 @@ const nombreTutor = computed(() =>
 
         <table class="texto-firma" style="width:100%; margin-top:2rem; text-align:center; border-collapse:collapse;">
             <tr>
-                <td style="width:50%;"><strong>Atentamente</strong></td>
-                <td style="width:50%;"><strong>V. b.</strong></td>
+                <td style="width:50%;"><strong>{{ esActividad ? 'ATENTAMENTE' : 'Atentamente' }}</strong></td>
+                <td style="width:50%;"><strong>{{ esActividad ? 'Vo. Bo.' : 'V. b.' }}</strong></td>
             </tr>
             <tr>
                 <td style="height:60px;"></td>
@@ -55,7 +56,7 @@ const nombreTutor = computed(() =>
                 </td>
             </tr>
             <tr>
-                <td><strong>DOCENTE</strong></td>
+                <td><strong>{{ esActividad ? 'DOCENTE RESPONSABLE' : 'DOCENTE' }}</strong></td>
                 <td><strong>{{ jefe?.puesto }}</strong></td>
             </tr>
         </table>

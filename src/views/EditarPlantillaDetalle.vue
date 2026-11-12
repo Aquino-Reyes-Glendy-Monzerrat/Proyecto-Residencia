@@ -107,13 +107,12 @@ const vistaPreviaEjemplo = computed(() => {
                 <div class="col-12 col-lg-6">
                     <div class="panel p-4">
                         <h5 class="mb-3">
-                            <i class="bi bi-pencil-square me-2"></i>
                             Editando: {{ plantilla?.nombre }}
                         </h5>
 
                         <div class="mb-3" v-if="plantilla?.asunto !== undefined">
                             <label class="form-label">Asunto</label>
-                            <input type="text" class="form-control" v-model="asuntoEditado">
+                            <textarea class="form-control" rows="2" v-model="asuntoEditado"></textarea>
                         </div>
 
                         <div class="mb-3" v-if="plantilla?.cuerpo !== null">
@@ -264,7 +263,7 @@ const vistaPreviaEjemplo = computed(() => {
                                 <div class="mt-4" style="font-size:11px;">
                                     <strong style="letter-spacing: 0.27em;">ATENTAMENTE</strong><br>
                                     <em>Excelencia en Educación Tecnológica®</em><br>
-                                    <em>Cultura, Ciencia y Tecnología para la Superación de México®</em><br><br>
+                                    <em>Cultura, Ciencia y Tecnología para la Superación de México®</em><br>
 
                                     <template v-if="esComision && !esComisionInterna">
                                         <strong>{{ buscarPorClave('director')?.grado }} {{

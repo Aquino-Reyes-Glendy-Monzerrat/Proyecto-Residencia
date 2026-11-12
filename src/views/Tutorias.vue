@@ -11,7 +11,7 @@ import {
 import { useImagenesDocumento } from '../composables/useImagenesDocumento.js'
 
 import { useSesion } from '../composables/UseSesion.js'
-import { formatearFolio } from '@/utils/folio.js'
+import { formatearFolio, folioDelDocumento, folioActual } from '@/utils/folio.js'
 import { fotoDeEstilo } from '@/utils/estiloDocumento.js'
 
 import {
@@ -19,23 +19,19 @@ import {
     esDelPeriodo, gruposDelSiguientePeriodo,
 } from '@/utils/periodosTutoria.js'
 
-import { fechaConBarras, fechaHoy } from '@/utils/fechas.js'
+import {  fechaHoy } from '@/utils/fechas.js'
 import { useFirmasDocumento } from '../composables/useFirmasDocumento.js'
 import { encabezadoDependenciaHTML, destinatarioHTML, ccpHTML } from '@/utils/encabezadoOficio.js'
-import { gruposConCarreraTexto } from '@/utils/carreras.js'
+import { escaparHTML } from '@/utils/html.js'
+import { CARRERAS, gruposConCarreraTexto } from '@/utils/carreras.js'
+import { textoSegunSexo } from '@/utils/sexo.js'
 import ImpresionOficiosTutorias from '@/components/Documentos/tutorias/ImpresionOficiosTutorias.vue'
+import SelectorAnio from '@/components/estadisticas/SelectorAnio.vue'
 
 const { usuarioActivo } = useSesion()
 
 
-const CIUDAD_FECHA = 'Chetumal, Quintana Roo,'
 
-
-const CARRERAS = {
-    I: { nombre: 'Ing. en Sistemas Computacionales', siglas: 'ISIC', color: 'hsl(173 100% 65%)' },
-    K: { nombre: 'Ing. en Tecnologías de la Información y Comunicaciones', siglas: 'ITIC', color: 'hsl(213 94% 78%)' },
-    W: { nombre: 'Ing. en Desarrollo de Aplicaciones', siglas: 'IDAP', color: 'hsl(0 91% 82%)' },
-}
 
 const cargando = ref(true)
 const docentes = ref([])
@@ -72,7 +68,7 @@ const docentesDelGrupoSeleccionado = computed(() => {
 const plantillaTutorias = ref(null)
 const listaFirmantes = ref([])
 const config = ref(null)
-const { headerImgActual, pieImgActual } = useImagenesDocumento(config)
+const { logosDe } = useImagenesDocumento(config)
 const subtipoFirmaTutorias = ref('tutorias')
 const camposFirmaTutorias = ref({})
 
@@ -157,30 +153,30 @@ function tieneTutor(grupo) {
 
 // Grupos y oficios guardados antes de que existiera el año cuentan
 // como del año configurado en Folio/Numeración (el que ya decía su texto).
-const anioSinDato = computed(() => config.value?.folio?.anio || new Date().getFullYear())
+const anioSinDato = computed(() => folioActual(config.value).anio)
 
 const gruposDelPeriodo = computed(() =>
     grupos.value.filter(g => esDelPeriodo(g.periodo, g.anio, seleccion.value, anioSinDato.value)))
 
-// Años para el selector: los que ya tienen grupos, más el actual y el
-// siguiente (para poder preparar el que viene).
-const aniosDisponibles = computed(() => {
+// Años que se pueden elegir (selector de año): desde el más antiguo
+// con grupos hasta el siguiente al actual (para poder preparar el que
+// viene) o el más nuevo con grupos.
+const rangoAnios = computed(() => {
     const hoy = new Date().getFullYear()
-    const anios = new Set([hoy, hoy + 1, Number(anioActual.value)])
-    grupos.value.forEach(g => anios.add(Number(g.anio ?? anioSinDato.value)))
-    return [...anios].sort((a, b) => b - a)
+    const anios = [hoy, hoy + 1, Number(anioActual.value),
+        ...grupos.value.map(g => Number(g.anio ?? anioSinDato.value))].filter(Number.isFinite)
+    return { min: Math.min(...anios), max: Math.max(...anios) }
 })
+
+function elegirAnio(anio) {
+    anioActual.value = anio
+    docenteSeleccionado.value = null
+    grupoEditSeleccionado.value = null
+}
 
 function gruposDeDocente(docenteId) {
     return gruposDelPeriodo.value.filter(g => esTutorDe(g, docenteId))
 }
-
-const gruposFiltrados = computed(() => {
-    let lista = gruposDelPeriodo.value
-    if (carreraFiltro.value !== 'TODAS') lista = lista.filter(g => g.carrera === carreraFiltro.value)
-    return [...lista].sort(compararGrupos)
-
-})
 
 // Vista "Todas": cada carrera ocupa su propia franja, sin mezclarse.
 const gruposPorCarreraParaTodas = computed(() => {
@@ -438,19 +434,10 @@ async function vaciarPeriodo() {
 
 // Generar documentos en lote
 const generando = ref(false)
-// Arma el HTML con el mismo encabezado, firma y pie que
-// NuevoDocumento.vue, pero construido aquí directo (lote, no form).
-// Mismo patrón que "comisionado_texto": sin sexo capturado, usa "(a)".
-function textoSegunSexo(sexo, masculino, femenino, generico) {
-    if (sexo === 'M') return masculino
-    if (sexo === 'F') return femenino
-    return generico
-}
 
-// Oficio de Tutorías c
-function construirCuerpoHTML(docente, campos, fechaDocumento, numeroOficio) {
-    const anio = config.value?.folio?.anio || new Date().getFullYear()
-    const prefijo = config.value?.folio?.prefijo_default || 'P'
+
+
+function construirCuerpoHTML(docente, campos, fechaDocumento, folioTexto, logos = logosDe(null)) {
     const jefeDepto = listaFirmantes.value.find(p => p.clave === 'jefe_depto')
     const gradoDoc = docente?.abreviatura ? docente.abreviatura + ' ' : ''
     const nombreDoc = (docente?.nombre || '').toUpperCase()
@@ -461,22 +448,21 @@ function construirCuerpoHTML(docente, campos, fechaDocumento, numeroOficio) {
     }
 
     return `<div class="w-100 mb-3 pb-2 encabezado-doc">
-    <img src="${headerImgActual.value}" class="header-doc-img" alt="Encabezado Institucional SEP TecNM">
+   <img src="${logos.encabezado}" class="header-doc-img" alt="Encabezado Institucional SEP TecNM">
 </div>
-${encabezadoDependenciaHTML({ oficio: formatearFolio(numeroOficio, prefijo, anio), fecha: fechaDocumento, asunto: plantillaTutorias.value?.asunto })}
+${encabezadoDependenciaHTML({ oficio: folioTexto, fecha: fechaDocumento, asunto: plantillaTutorias.value?.asunto })}
 ${destinatarioHTML([gradoDoc + nombreDoc, 'DOCENTE DE ESTE INSTITUTO'], 'P R E S E N T E.')}
 <div class="texto-cuerpo">${cuerpoTexto}</div>
 <div class="mt-4 texto-firma">
     <strong class="atentamente-spaced">ATENTAMENTE</strong><br>
     <div class="texto-lema">Excelencia en Educación Tecnológica®</div>
     <div class="texto-lema-secundario">Cultura, Ciencia y Tecnología para la Superación de México®</div>
-    <br><br>
-    <strong>${jefeDepto?.grado || ''} ${jefeDepto?.nombre || ''}</strong><br>
-    <strong>${jefeDepto?.puesto || ''}</strong>
+    <strong>${escaparHTML(jefeDepto?.grado)} ${escaparHTML(jefeDepto?.nombre)}</strong><br>
+    <strong>${escaparHTML(jefeDepto?.puesto)}</strong>
 </div>
 ${ccpHTML(campos.ccp_destinos)}
 <div class="w-100 text-center pie-fijo" style="font-size: 10px; line-height: 1.3;">
-    <img src="${pieImgActual.value}" alt="Pie de página" class="pie-doc-img">
+    <img src="${logos.pie}" alt="Pie de página" class="pie-doc-img">
 </div>`
 }
 
@@ -558,9 +544,11 @@ async function generarDocumentos() {
             // Cambió su lista — se actualiza el mismo documento,
             // conservando fecha y número de oficio ya asignados.
             const fechaConservada = existente.campos?.fecha_documento || hoy
-            const oficioConservado = existente.campos?.numero_oficio
+            //  folio con el año y prefijo con que se generp
+            const vigente = folioActual(config.value)
+            const folioConservado = folioDelDocumento(existente, vigente.prefijo, vigente.anio)
 
-            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, fechaConservada, oficioConservado)
+            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, fechaConservada, folioConservado, logosDe(existente))
             await actualizarDocumento(existente.id, {
                 cuerpo: cuerpoNuevo,
 
@@ -599,13 +587,15 @@ async function generarDocumentos() {
         } else {
 
             // Documento nuevo
-            const { numero: numeroOficio } = await consumirSiguienteFolio('general')
+            const { numero: numeroOficio, anio: anioFolio, prefijo: prefijoFolio } = await consumirSiguienteFolio('general')
 
-            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, hoy, numeroOficio)
+            const cuerpoNuevo = construirCuerpoHTML(docente, camposNuevos, hoy, formatearFolio(numeroOficio, prefijoFolio, anioFolio))
+
             const documentoCreado = await agregarDocumento({
                 tipo: 'tutorias',
                 tipoRuta: 'tutorias',
                 docenteId: docente.id,
+                creadoPor: usuarioActivo?.id,
                 // Si el lote del periodo ya está compartido, el nuevo también.
                 visibleParaSecretaria: loteCompartido.value,
 
@@ -616,6 +606,8 @@ async function generarDocumentos() {
                 campos: {
                     ...camposNuevos,
                     numero_oficio: numeroOficio,
+                    anio_folio: anioFolio,
+                    prefijo_folio: prefijoFolio,
                     fecha_documento: hoy
                 },
 
@@ -640,7 +632,7 @@ async function generarDocumentos() {
     }
     generando.value = false
 
-    let mensaje = `Listo — ${creados} nuevo(s), ${actualizados} actualizado(s), ${sinCambios} sin cambios (se dejaron igual).`
+    let mensaje = `Listo  ${creados} nuevo(s), ${actualizados} actualizado(s), ${sinCambios} sin cambios (se dejaron igual).`
     if (huerfanos.length > 0) {
         const nombres = huerfanos.map(d => d.campos?.nombre_destinatario || '?').join(', ')
         mensaje += `\n\nOjo: ${huerfanos.length} documento(s) de esta corrección ya no tienen ningún grupo asignado (${nombres}) — no se borraron solos, revísalos en Bitácora si ya no aplican.`
@@ -669,24 +661,29 @@ async function alternarLote() {
     if (!activar && !confirm(`¿Dejar de compartir los oficios de ${nombre} con la Secretaria?\n\nYa no los verá en su Bitácora.`)) return
     cambiandoLote.value = true
     try {
+        // Al compartir se saltan los cancelados; al dejar de compartir se
+        // ocultan todos, también los que se cancelaron ya compartidos.
+        const oficios = (await getDocumentos()).filter(d => d.tipo === 'tutorias'
+            && (!activar || d.estado !== 'cancelado')
+            && esDelPeriodo(d.campos?.periodo, d.campos?.anio_periodo, seleccion.value, anioSinDato.value))
+
+        // Sin oficios no hay nada que compartir: no se marca el periodo.
+        if (activar && oficios.length === 0) {
+            alert(`Todavía no hay oficios de Tutorías en ${nombre}. Genera los documentos y después compártelos.`)
+            return
+        }
+
         const lista = new Set(config.value?.tutorias_compartidas || [])
         if (activar) lista.add(claveLote.value)
         else lista.delete(claveLote.value)
         await actualizarConfiguracion({ tutorias_compartidas: [...lista] })
         config.value = { ...config.value, tutorias_compartidas: [...lista] }
 
-        // Al compartir se saltan los cancelados; al dejar de compartir se
-        // ocultan todos, también los que se cancelaron ya compartidos.
-        const oficios = (await getDocumentos()).filter(d => d.tipo === 'tutorias'
-            && (!activar || d.estado !== 'cancelado')
-            && esDelPeriodo(d.campos?.periodo, d.campos?.anio_periodo, seleccion.value, anioSinDato.value))
         for (const d of oficios) {
             await actualizarDocumento(d.id, { visibleParaSecretaria: activar })
         }
         if (activar) {
-            alert(oficios.length
-                ? `Listo: ${oficios.length} oficio(s) de ${nombre} compartidos con la Secretaria.`
-                : `${nombre} quedó compartido con la Secretaria.`)
+            alert(`Listo: ${oficios.length} oficio(s) de ${nombre} compartidos con la Secretaria.`)
         }
     } finally {
         cambiandoLote.value = false
@@ -728,10 +725,12 @@ async function alternarLote() {
                                 Agosto - Diciembre
                             </button>
                         </div>
-                        <select class="form-select form-select-sm w-auto" v-model.number="anioActual"
-                            title="Año del periodo" @change="docenteSeleccionado = null; grupoEditSeleccionado = null">
-                            <option v-for="a in aniosDisponibles" :key="a" :value="a">{{ a }}</option>
-                        </select>
+                        
+                        <!-- Año del periodo -->
+                        <SelectorAnio :model-value="Number(anioActual)" :minimo="rangoAnios.min" :maximo="rangoAnios.max"
+                            @update:model-value="elegirAnio" />
+
+
                         <button class="btn btn-outline-secondary btn-sm" :disabled="pasandoPeriodo"
                             @click="pasarAlSiguientePeriodo"
                             :title="`Crea los grupos de ${etiquetaPeriodo(destinoSiguiente.periodo, destinoSiguiente.anio)} con un semestre más y los mismos tutores`">
@@ -742,26 +741,26 @@ async function alternarLote() {
                         <button class="btn btn-success btn-sm" :disabled="generando" @click="generarDocumentos">
                             <span v-if="generando" class="spinner-border spinner-border-sm me-1"></span>
                             <i v-else class="bi bi-file-earmark-arrow-up me-1"></i>
-                            {{ generando ? 'Generando...' : 'Generar documentos' }}
+                            {{ generando ? 'Generando...' : 'Generar Oficios' }}
                         </button>
-                        <button class="btn btn-outline-primary btn-sm" @click="abrirImpresion">
-                            <i class="bi bi-printer me-1"></i> Ver / Imprimir todos
+                        
+                        <button class="btn btn-outline-primary btn-sm" @click="abrirImpresion"
+                        title="Ver e imprimir los oficios del periodo" aria-label="Ver e imprimir los oficios del periodo">
+                        <i class="bi bi-eye"></i>
+                        </button>
+                      
+                       
+
+                        <button class="btn btn-sm" :class="loteCompartido ? 'btn-info' : 'btn-outline-info'"
+                            :disabled="cambiandoLote" @click="alternarLote"
+                            :title="loteCompartido
+                                ? 'Compartido con Secretaria (puede ver e imprimir) — clic para dejar de compartir'
+                                : 'Compartir los oficios de este periodo con Secretaria (podrá verlos e imprimirlos juntos)'"
+                            :aria-label="loteCompartido ? 'Dejar de compartir con Secretaria' : 'Compartir con Secretaria'">
+                            <span v-if="cambiandoLote" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-share"></i>
                         </button>
 
-                        <button v-if="!loteCompartido" class="btn btn-outline-secondary btn-sm" :disabled="cambiandoLote"
-                            @click="alternarLote" title="Comparte todos los oficios de este periodo para que la Secretaria los imprima juntos">
-                            <span v-if="cambiandoLote" class="spinner-border spinner-border-sm me-1"></span>
-                            <i v-else class="bi bi-share me-1"></i> Compartir lote con Secretaria
-                        </button>
-                        <template v-else>
-                            <span class="badge text-bg-success d-inline-flex align-items-center px-3">
-                                <i class="bi bi-check2 me-1"></i> Compartido con Secretaria
-                            </span>
-                            <button class="btn btn-outline-secondary btn-sm" :disabled="cambiandoLote" @click="alternarLote">
-                                <span v-if="cambiandoLote" class="spinner-border spinner-border-sm me-1"></span>
-                                Dejar de compartir
-                            </button>
-                        </template>
                     </div>
                 </div>
 
@@ -812,7 +811,6 @@ async function alternarLote() {
                             <div class="p-2 small text-muted border-top"
                                 :class="docenteSeleccionado ? 'text-info' : ''">
                                 <template v-if="docenteSeleccionado">
-                                    <i class="bi bi-arrow-right-circle"></i>
                                     Toca los cuadritos de la derecha para asignar o quitar sus grupos.
                                     <button type="button" class="btn btn-sm btn-outline-danger ms-2 py-0"
                                         @click="quitarGruposDelSeleccionado">Quitarle todos sus grupos</button>

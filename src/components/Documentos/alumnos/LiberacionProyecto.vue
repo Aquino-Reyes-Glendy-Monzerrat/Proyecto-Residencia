@@ -1,5 +1,5 @@
 <script setup>
-import {ref,computed,onBeforeUnmount} from 'vue'
+import {ref,onBeforeUnmount} from 'vue'
 
 const props = defineProps({
     campos: {

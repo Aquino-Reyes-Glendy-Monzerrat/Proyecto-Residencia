@@ -250,7 +250,6 @@ async function guardar() {
                                         <div class="texto-lema-secundario">
                                             Cultura, Ciencia y Tecnología para la Superación de México®
                                         </div>
-                                        <br><br>
                                         <strong>NOMBRE DEL FIRMANTE</strong><br>
                                         <strong>PUESTO DEL FIRMANTE</strong>
                                     </div>

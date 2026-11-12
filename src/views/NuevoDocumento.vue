@@ -1,18 +1,23 @@
 <script setup>
 import AdminLayout from '../layout/AdminLayout.vue'
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getPlantilla, buscarAlumno, buscarDocente, buscarEgresado, agregarDocumento, getFirmantes, getDocentes,getGrados, getDestinatarios, getDocumentoPorId, actualizarDocumento, getBitacoraPorId, finalizarBitacora } from '../services/api.js'
+import {
+    getPlantilla, buscarAlumno, buscarDocente, buscarEgresado, agregarDocumento, getFirmantes, getDocentes, getGrados, getDestinatarios, getDocumentoPorId, actualizarDocumento,
+    getBitacoraPorId, finalizarBitacora, enviarDocumentoARH
+} from '../services/api.js'
 import { useFolio } from '../composables/UseFolio.js'
 import { useTextoDocumento } from '../composables/useTextoDocumento.js'
 import { getConfiguracion } from '../services/api.js'
 // import headerImg from '@/assets/images/logo-encabezado.png'
 // import pieImg from '@/assets/images/pie.png'
 import { useSesion } from '@/composables/UseSesion.js'
-import { formatearFolio, imprimirConNombre, folioRealDe } from '@/utils/folio.js'
+import { formatearFolio, imprimirConNombre, folioRealDe, datosFolioDe, camposDeFolio, folioActual } from '@/utils/folio.js'
+import { textoSegunSexo } from '@/utils/sexo.js'
 import { useMemosJuntos } from '@/composables/useMemosJuntos.js'
 import { useImagenesDocumento } from '../composables/useImagenesDocumento.js'
 import { useFirmasDocumento } from '../composables/useFirmasDocumento.js'
+import { useMantenimientoUnaHoja } from '@/composables/useMantenimientoUnaHoja.js'
 
 // Formularios de cada tipo de documento (components/Documentos/).
 import DatosDocumento from '@/components/Documentos/DatosDocumento.vue'
@@ -23,6 +28,14 @@ import ComisionExterna from '@/components/Documentos/Comision/ComisionExterna.vu
 import ComisionInterna from '@/components/Documentos/Comision/ComisionInterna.vue'
 import TipoMemorandum from '@/components/Documentos/memorandum/TipoMemorandum.vue'
 import CompactacionHorario from '@/components/Documentos/memorandum/CompactacionHorario.vue'
+
+import ModoDocentes from '@/components/Documentos/memorandum/ModoDocentes.vue'
+import LoteDocentes from '@/components/Documentos/memorandum/LoteDocentes.vue'
+import NavegadorLote from '@/components/Documentos/memorandum/NavegadorLote.vue'
+import ProgresoLote from '@/components/Documentos/memorandum/ProgresoLote.vue'
+import ResultadoLote from '@/components/Documentos/memorandum/ResultadoLote.vue'
+import { useLoteCompactacion } from '@/composables/useLoteCompactacion.js'
+
 import SolventacionFaltas from '@/components/Documentos/memorandum/SolventacionFaltas.vue'
 import TipoServicioAlumno from '@/components/Documentos/alumnos/TipoServicioAlumno.vue'
 import BuscarAlumno from '@/components/Documentos/alumnos/BuscarAlumno.vue'
@@ -36,23 +49,26 @@ import FormularioOtros from '@/components/Documentos/otros/FormularioOtros.vue'
 import TipoServicioMantenimiento from '@/components/Documentos/mantenimiento/TipoServicioMantenimiento.vue'
 import FormularioMantenimiento from '@/components/Documentos/mantenimiento/FormularioMantenimiento.vue'
 
+import TipoConstancia from '@/components/Documentos/alumnos/TipoConstancia.vue'
 import FormularioConstanciaTutorado from '@/components/Documentos/alumnos/FormularioConstanciaTutorado.vue'
 import VistaConstanciaTutorado from '@/components/Documentos/alumnos/VistaConstanciaTutorado.vue'
-import { encabezadoDependenciaHTML, destinatarioHTML } from '@/utils/encabezadoOficio.js'
 
-import { enCorreccion } from '@/utils/estadoDocumento.js'
+import OficioCompactacion from '@/components/Documentos/compactacion/OficioCompactacion.vue'
+import VistaOficioCompactacion from '@/components/Documentos/compactacion/VistaOficioCompactacion.vue'
+import { encabezadoDependenciaHTML, destinatarioHTML, lineasCcpHTML, CIUDAD_FECHA } from '@/utils/encabezadoOficio.js'
+import { escaparHTML } from '@/utils/html.js'
+
+import { enCorreccion, esTipoParaRH } from '@/utils/estadoDocumento.js'
 import { fotoDeEstilo, estiloDe, variablesDeEstilo } from '@/utils/estiloDocumento.js'
 import { fechaConBarras, fechaHoy } from '@/utils/fechas.js'
+import { textoIncidencia } from '@/utils/incidencias.js'
+import { TIPO_OFICIO_COMPACTACION, PLANTILLA_OFICIO_COMPACTACION, filasIncluidas, motivoNoGenerar  } from '@/utils/oficioCompactacion.js'
+import { TIPO_CONSTANCIAS, SUBTIPO_ACTIVIDAD, motivoNoGenerarConstancia } from '@/utils/constanciaCreditos.js'
 
 const config = ref(null)
-const { headerImgActual, pieImgActual } = useImagenesDocumento(config)
-
-const CIUDAD_FECHA = 'Chetumal, Quintana Roo,'
+const folioVigente = computed(() => folioActual(config.value))
 
 const { fechaATexto, rangoFechasATexto, diasATexto } = useTextoDocumento()
-
-
-
 
 const route = useRoute()
 const router = useRouter()
@@ -67,6 +83,7 @@ const plantilla = ref(null)
 const cargando = ref(false)
 const documentoGuardado = ref(false)
 const docOriginal = ref(null) // el documento tal como estaba antes de editarlo
+const { headerImgActual, pieImgActual } = useImagenesDocumento(config, docOriginal)
 const documentoIdSegundo = ref(null)
 
 // Al editar un memo que es parte de un par: su pareja, solo para el
@@ -75,12 +92,15 @@ const parejaEdicion = ref(null)
 
 const textoParejaEdicion = computed(() => {
     if (!parejaEdicion.value || !config.value) return ''
-    return folioRealDe(parejaEdicion.value, config.value.folio.prefijo_default, config.value.folio.anio) || parejaEdicion.value.folio
+    return folioRealDe(parejaEdicion.value, folioVigente.value.prefijo, folioVigente.value.anio) || parejaEdicion.value.folio
 })
 
 // Formato de la vista previa (y de lo que se imprime): al editar, el
 // del propio documento; al crear, el actual de la configuración.
 const estiloDocumento = computed(() => variablesDeEstilo(estiloDe(docOriginal.value, config.value)))
+
+// memso y concentrado van a rh
+const esDocRH = computed(() => esTipoParaRH(subtipo.value || tipo, campos.value.enviar_rh))
 
 // Decide a dónde va una Comisión Externa al editar: si nunca se
 // rechazó, a la Subdirectora por primera vez; si ya se rechazó, se
@@ -88,7 +108,7 @@ const estiloDocumento = computed(() => variablesDeEstilo(estiloDe(docOriginal.va
 const destinoAlGuardarEdicion = computed(() => {
     const esComisionConCadena = subtipo.value === 'comision-externa' ||
         (subtipo.value === 'comision-interna' && campos.value.para_jefe_depto)
-    if (!esComisionConCadena) return null
+    if (!esComisionConCadena && !esDocRH.value) return null
     if (usuarioActivo?.rol !== 'admin') {
         return {
             estado: 'pendiente_jefeDepto',
@@ -97,6 +117,17 @@ const destinoAlGuardarEdicion = computed(() => {
             rutaDespues: '/bitacorasecapo'
         }
     }
+
+    //para rh, si corrige  Admin, se firma y se reenvaa solo
+    if (esDocRH.value) {
+        return {
+            estado: 'pendiente_jefeDepto',
+            avisoAntes: 'Al guardar, se firma y se envía a Recursos Humanos.',
+            mensajeDespues: 'Documento corregido, firmado y enviado a Recursos Humanos',
+            rutaDespues: '/bitacora'
+        }
+    }
+
     const yaFueRechazado = !!docOriginal.value?.rechazadoPor
     return {
         estado: 'pendiente_subdirectora',
@@ -119,6 +150,11 @@ function camposIniciales() {
         sexo_destinatario: '',
         ciudad_destino: '',
         motivo: '',
+
+        // solventación de faltas
+        tipo_incidencia: '',
+        fecha_incidencia: '',
+
         fecha: '',
         hora_entrada: '',
         hora_salida: '',
@@ -160,11 +196,16 @@ function camposIniciales() {
         categoria_centro_computo: false,
         area_solicitante: 'Sistemas y Computación',
         nombre_solicitante_mant: '',
-        fecha_solicitud_mant: '',
+        fecha_solicitud_mant: fechaHoy(),
         descripcion_servicio: '',
         motivo_proveedor_externo: '',
         categoria_recursos_materiales: false,
-        puesto_destinatario: ''
+
+        puesto_destinatario: '',
+        // Oficio de compactaciin
+        compactacion_desde: '',
+        compactacion_hasta: '',
+        filas_compactacion: [],
     }
 }
 
@@ -266,29 +307,30 @@ watch(subtipo, async (val) => {
 function limpiarFormulario() {
     campos.value = camposIniciales()
     campos.value.nombre_solicitante_mant = nombreJefeDepto()
+        if (lote.activo) lote.reiniciar()
 
     const eranDos = combinarIncidencias.value
     limpiarCombo()
     combinarIncidencias.value = eranDos
-    
+
     busquedaPersona.value = ''
     sugerencias.value = []
     mostrarSugerencias.value = false
-    documentoGuardado.value = false 
+    documentoGuardado.value = false
 
-                    
-    
+
+
 }
 
 
 
-// Todos comparten el contador 'general' excepto Memorándum (aparte)
+// Todos comparten el contador 'general' excepto memos
 // y Tutorías (no consume folio automático aquí, se llena a mano).
 const TIPOS_FOLIO_GENERAL = [
     'comision', 'liberacion-proyecto',
     'aceptacion', 'terminacion',
     'revision-tesis', 'otros', 'mantenimiento',
-    'constancia-tutorado',
+    'constancia-creditos', 'oficio-compactacion',
 ]
 const categoriaFolio = computed(() => {
     if (TIPOS_FOLIO_GENERAL.includes(tipo)) return 'general'
@@ -300,9 +342,9 @@ const categoriaFolio = computed(() => {
 const { folioSeleccionado, mostrarReservados, folioMostradoTexto, reservadosConTexto, resolverNumeroFolio } = useFolio(categoriaFolio, config)
 
 const {
-    combinarIncidencias, motivo2, fecha2,
+    combinarIncidencias, motivo2, fecha2, tipo2, fechaIncidencia2,
     folioSeleccionado2, mostrarReservados2, folioMostradoTexto2, reservadosConTexto2,
-    resolverNumeroFolio2, guardarSegundoYVincular,limpiarCombo, 
+    resolverNumeroFolio2, guardarSegundoYVincular, limpiarCombo,
 } = useMemosJuntos(categoriaFolio, config, folioSeleccionado)
 
 
@@ -329,6 +371,10 @@ onMounted(async () => {
     }
 
     if (!idEdicion && route.query.subtipo) subtipo.value = String(route.query.subtipo)
+        // Tarea "Compactación concentrado": abre directo en Varios docentes.
+    if (!idEdicion && route.query.modo === 'varios' && subtipo.value === 'memorandum-compactacion-horario') {
+        cambiarModoLote(true)
+    }
     // Si viene de una tarea de Bitácora, solo es referencia — no
     // precarga campos del formulario.
     if (bitacoraId) {
@@ -337,7 +383,10 @@ onMounted(async () => {
 
     // Comisión/Memorándum/Aceptación/Terminación tienen subtipo — su
     // plantilla real se resuelve en el watch(subtipo) de abajo.
-    if (!['comision', 'memorandum', 'aceptacion', 'terminacion'].includes(tipo)) {
+    // El Oficio de compactación no tiene plantilla editable: su texto es fijo.
+    if (tipo === TIPO_OFICIO_COMPACTACION) {
+        plantilla.value = PLANTILLA_OFICIO_COMPACTACION
+    } else if (!['comision', 'memorandum', 'aceptacion', 'terminacion', TIPO_CONSTANCIAS].includes(tipo)) {
         plantilla.value = await getPlantilla(tipo)
     }
 
@@ -345,12 +394,12 @@ onMounted(async () => {
     listaFirmantes.value = await getFirmantes()
     listaDocentes.value = await getDocentes()
     listaDestinatarios.value = await getDestinatarios()
-  
+
     if (!campos.value.nombre_solicitante_mant) campos.value.nombre_solicitante_mant = nombreJefeDepto()
 })
 
 
-const tiposAlumno = ['aceptacion', 'terminacion', 'liberacion-proyecto', 'constancia-tutorado']
+const tiposAlumno = ['aceptacion', 'terminacion', 'liberacion-proyecto', TIPO_CONSTANCIAS]
 
 async function buscarEnBD(query) {
     if (query.length < 2) {
@@ -386,17 +435,77 @@ function seleccionarPersona(persona) {
 }
 
 
-const notaCcp = computed(() => {
-    const partes = campos.value.ccp_destinos || []
 
-    if (partes.length === 0 && !campos.value.ccp_iniciales) return ''
+// ── Memo de compactación para varios docentes (useLoteCompactacion.js) ──
+// Cada memo pasa por el mismo guardarFirmarYEnviar() que uno individual.
+function limpiarDocenteLote() {
+    Object.assign(campos.value, { nombre_destinatario: '', nombre_solicitante: '', sexo_destinatario: '', grado_docente: '' })
+    // Sin folio de un memo anterior en la vista previa.
+    const iniciales = camposIniciales()
+    ;['numero_oficio', 'anio_folio', 'prefijo_folio'].forEach(c => { campos.value[c] = iniciales[c] })
+    busquedaPersona.value = ''
+    quitarFirmaDeLaVista()
+}
 
-    const lineas = partes.map((p, i) => i === 0 ? `C.c.p. ${p}` : p)
-    if (campos.value.ccp_iniciales) lineas.push(campos.value.ccp_iniciales)
+// La vista previa muestra la firma del último memo firmado; se quita para
+// que el siguiente no se guarde con una firma que no es suya.
+function quitarFirmaDeLaVista() {
+    firmaElectronica.value = ''
+    qrFirma.value = ''
+}
 
-    return lineas.map(l => `<div>${l}</div>`).join('')
+async function generarUnoDelLote() {
+    quitarFirmaDeLaVista()
+    documentoGuardado.value = false
+    folioSeleccionado.value = 'automatico'
+    await nextTick()
+    const id = await guardarFirmarYEnviar()
+    return { id, folio: numeroOficioCompleto() }
+}
+
+const lote = reactive(useLoteCompactacion({
+    campos, config, categoriaFolio,
+    aplicarDocente: seleccionarPersona,
+    limpiarDocente: limpiarDocenteLote,
+    generarUno: generarUnoDelLote,
+}))
+const esLote = computed(() => lote.activo && subtipo.value === 'memorandum-compactacion-horario' && !idEdicion)
+const rutaBitacora = usuarioActivo?.rol === 'admin' ? '/bitacora' : '/bitacorasecapo'
+
+function cambiarModoLote(varios) {
+    folioSeleccionado.value = 'automatico' 
+    mostrarReservados.value = false
+    lote.cambiarModo(varios)
+}
+
+
+
+
+
+
+async function generarLote() {
+    const falta = lote.motivoNoGenerar()
+    if (falta) return alert(falta)
+    if (!confirm(`Se generarán ${lote.total} memos (${lote.rangoFolios}). ¿Continuar?`)) return
+    await lote.generar()
+}
+
+
+
+// of compactacion solo los docentes seleccionados para incluir
+const filasOficioCompactacion = computed(() => filasIncluidas(campos.value.filas_compactacion))
+
+const notaCcp = computed(() => lineasCcpHTML(campos.value.ccp_destinos, campos.value.ccp_iniciales))
+
+
+
+// oficio maantenimiento 
+const hojaPreview = ref(null)
+const { cabe: cabeEnUnaHoja } = useMantenimientoUnaHoja({
+    hoja: hojaPreview,
+    activo: () => tipo === 'mantenimiento',
+    observar: () => [campos.value, notaCcp.value, estiloDocumento.value],
 })
-
 
 // Tutorías: encabezado y destinatario iguales a los que arma la vista
 // Tutorías (utils/encabezadoOficio.js), para que al editar se vea igual.
@@ -411,14 +520,19 @@ const destinatarioTutorias = computed(() => destinatarioHTML([
 ], 'P R E S E N T E.'))
 
 
+// al editar, el folio conserva el año y prefijo con que se genero
 function numeroOficioCompleto() {
-    const anio = config.value?.folio.anio || new Date().getFullYear()
-    const prefijo = config.value?.folio.prefijo_default || 'P'
+    const { prefijo, anio } = datosFolioDe({ ...docOriginal.value, campos: campos.value },
+        folioVigente.value.prefijo, folioVigente.value.anio)
     return formatearFolio(campos.value.numero_oficio, prefijo, anio)
 }
 
 // En MAYÚSCULAS en todos los tipos excepto memorándum.
 const CAMPOS_MAYUSCULAS = ['nombre_estudiante', 'nombre_destinatario', 'nombre_solicitante', 'carrera', 'nombre_proyecto']
+
+const CAMPOS_HTML = ['grupos_carrera']
+
+const articuloC = computed(() => textoSegunSexo(campos.value.sexo_destinatario, 'el', 'la', 'el'))
 
 const vistaPrevia = computed(() => {
     if (!plantilla.value?.cuerpo) return ''
@@ -427,10 +541,13 @@ const vistaPrevia = computed(() => {
         const enMayusculas = tipo !== 'memorandum' && CAMPOS_MAYUSCULAS.includes(clave) && typeof valor === 'string'
         let valorFinal = enMayusculas ? valor.toUpperCase() : valor
         // \n de un <textarea> no se ve en HTML, se convierte a <br>.
-        if (typeof valorFinal === 'string') valorFinal = valorFinal.replaceAll('\n', '<br>')
+        if (typeof valorFinal === 'string' && !CAMPOS_HTML.includes(clave)) {
+            valorFinal = escaparHTML(valorFinal).replaceAll('\n', '<br>')
+        }
         html = html.replaceAll(`{${clave}}`, valorFinal || '')
     }
     html = html.replaceAll('{fecha_texto}', fechaATexto(campos.value.fecha))
+    html = html.replaceAll('{incidencia_texto}', textoIncidencia(campos.value.tipo_incidencia, campos.value.fecha_incidencia))
     html = html.replaceAll('{rango_fechas}', rangoFechasATexto(campos.value.fecha_inicio, campos.value.fecha_fin))
     html = html.replaceAll('{dias_texto}', diasATexto(campos.value.fecha_inicio, campos.value.fecha_fin))
     html = html.replaceAll('{fecha_inicio_texto}', fechaATexto(campos.value.fecha_inicio))
@@ -438,21 +555,18 @@ const vistaPrevia = computed(() => {
 
 
     const lugarTexto = campos.value.lugar_especifico
-        ? `, ${campos.value.lugar_especifico}`
+        ? `, ${escaparHTML(campos.value.lugar_especifico)}`
         : ''
     html = html.replaceAll('{lugar_texto}', lugarTexto)
 
-    const comisionadoTexto = campos.value.sexo_destinatario === 'F' ? 'comisionada'
-        : campos.value.sexo_destinatario === 'M' ? 'comisionado'
-            : 'comisionado(a)'
-    html = html.replaceAll('{comisionado_texto}', comisionadoTexto)
-    const articuloC = campos.value.sexo_destinatario === 'F' ? 'la' : 'el'
-    html = html.replaceAll('{articulo_c}', articuloC)
+    html = html.replaceAll('{comisionado_texto}',
+        textoSegunSexo(campos.value.sexo_destinatario, 'comisionado', 'comisionada', 'comisionado(a)'))
+    html = html.replaceAll('{articulo_c}', articuloC.value)
     const nombreDocente = tipo !== 'memorandum'
         ? (campos.value.nombre_destinatario || '').toUpperCase()
         : (campos.value.nombre_destinatario || '')
     html = html.replaceAll('{nombre_docente_completo}',
-        `${campos.value.grado_docente} ${nombreDocente}`.trim())
+        escaparHTML(`${campos.value.grado_docente} ${nombreDocente}`.trim()))
     const horarioTexto = (campos.value.horario_inicio && campos.value.horario_fin)
         ? `, en el horario de ${campos.value.horario_inicio} a ${campos.value.horario_fin} hrs`
         : ''
@@ -463,11 +577,11 @@ const vistaPrevia = computed(() => {
 const numeroOficioResuelto2 = ref('')
 const vistaPreviaSegundaIncidencia = computed(() => {
     if (!combinarIncidencias.value || !plantilla.value?.cuerpo) return ''
-    const articuloC = campos.value.sexo_destinatario === 'F' ? 'la' : 'el'
     const cuerpo = plantilla.value.cuerpo
-        .replaceAll('{articulo_c}', articuloC)
-        .replaceAll('{nombre_solicitante}', campos.value.nombre_solicitante || '')
-        .replaceAll('{motivo}', (motivo2.value || '').replaceAll('\n', '<br>'))
+        .replaceAll('{articulo_c}', articuloC.value)
+        .replaceAll('{nombre_solicitante}', escaparHTML(campos.value.nombre_solicitante))
+        .replaceAll('{incidencia_texto}', textoIncidencia(tipo2.value, fechaIncidencia2.value))
+        .replaceAll('{motivo}', escaparHTML(motivo2.value).replaceAll('\n', '<br>'))
 
     const jefe = buscarPorClave('jefe_depto')
     const jefeRH = buscarDestinatarioPorClave('jefe_recursos_humanos')
@@ -479,12 +593,12 @@ const vistaPreviaSegundaIncidencia = computed(() => {
         </div>
         <div class="d-flex justify-content-between mb-3">
             <div class="texto-destinatario">
-                <strong>${jefeRH?.grado || ''} ${jefeRH?.nombre || ''}</strong><br>
-                <strong>${jefeRH?.puesto || ''}</strong>
+                <strong>${escaparHTML(jefeRH?.grado)} ${escaparHTML(jefeRH?.nombre)}</strong><br>
+                <strong>${escaparHTML(jefeRH?.puesto)}</strong>
             </div>
             <div class="text-end texto-encabezado">
                 ${CIUDAD_FECHA} <span class="fecha-resaltada">${fechaTexto}</span><br>
-                <strong>MEMORANDUM NO: ${formatearFolio(numeroOficioResuelto2.value, config.value?.folio.prefijo_default || 'P', config.value?.folio.anio || new Date().getFullYear())}</strong>
+                <strong>MEMORANDUM NO: ${formatearFolio(numeroOficioResuelto2.value, folioVigente.value.prefijo, folioVigente.value.anio)}</strong>
             </div>
         </div>
         <div class="texto-cuerpo">${cuerpo}</div>
@@ -492,9 +606,8 @@ const vistaPreviaSegundaIncidencia = computed(() => {
             <strong class="atentamente-spaced">ATENTAMENTE</strong><br>
             <div class="texto-lema">Excelencia en Educación Tecnológica®</div>
             <div class="texto-lema-secundario">Cultura, Ciencia y Tecnología para la Superación de México®</div>
-            <br><br>
-            <strong>${jefe?.grado || ''} ${jefe?.nombre || ''}</strong><br>
-            <strong>${jefe?.puesto || ''}</strong><br>
+            <strong>${escaparHTML(jefe?.grado)} ${escaparHTML(jefe?.nombre)}</strong><br>
+            <strong>${escaparHTML(jefe?.puesto)}</strong><br>
         </div>
         ${notaCcp.value ? `<div class="texto-ccp-wrapper"><span class="texto-ccp">${notaCcp.value}</span></div>` : ''}
         <div class="w-100 text-center pie-fijo" style="font-size: 10px; line-height: 1.3;">
@@ -507,18 +620,21 @@ async function guardarEnHistorial() {
     if (documentoGuardado.value) {
         return idEdicion || documentoIdActual.value
     }
- 
+
     try {
         // Resuelve el número de oficio ANTES de armar el HTML final,
         // solo al crear (avanza el contador o marca el reservado usado).
         if (!idEdicion && categoriaFolio.value) {
-            campos.value.numero_oficio = await resolverNumeroFolio()
+            Object.assign(campos.value, camposDeFolio(await resolverNumeroFolio()))
             // Espera a que la vista previa se repinte con el número
             // ya resuelto, si no el innerHTML captura el valor viejo.
             await nextTick()
         }
 
-        const htmlCompleto = document.querySelector('.documento-carta')?.innerHTML || vistaPrevia.value
+        // oficio de compactacion: se guardan todas sus hojas.
+        const htmlCompleto = tipo === TIPO_OFICIO_COMPACTACION
+            ? document.querySelector('.hojas-oficio')?.innerHTML || ''
+            : document.querySelector('.documento-carta')?.innerHTML || vistaPrevia.value
         const requiereAprobacion = subtipo.value === 'comision-externa' ||
             (subtipo.value === 'comision-interna' && campos.value.para_jefe_depto)
         const usuarioActivo = getUsuarioActivo()
@@ -590,6 +706,10 @@ async function guardarEnHistorial() {
                 // Secretaria/Apoyo → pasa por el Jefe de Depto primero;
                 // Jefe/Admin → directo a la Subdirectora.
                 estadoInicial = usuarioActivo?.rol !== 'admin' ? 'pendiente_jefeDepto' : 'pendiente_subdirectora'
+            } else if (esDocRH.value) {
+                // Espera al Jefe; si lo creó el Admin, se envía a RH en
+                // cuanto se firma (generarDocumento).
+                estadoInicial = 'pendiente_jefeDepto'
             }
             datosCompletos = {
                 ...datosDocumento,
@@ -611,13 +731,14 @@ async function guardarEnHistorial() {
         // Solventación de Faltas con 2 incidencias: se guarda un
         // segundo documento independiente, con su propio folio.
         if (!idEdicion && combinarIncidencias.value && subtipo.value === 'memorandum-solventacion-faltas') {
-            const numeroOficio2 = await resolverNumeroFolio2()
-            numeroOficioResuelto2.value = numeroOficio2
-            documentoIdSegundo.value = await guardarSegundoYVincular(documentoId,datosCompletos,vistaPreviaSegundaIncidencia.value,numeroOficio2)
+            const folio2 = await resolverNumeroFolio2()
+            numeroOficioResuelto2.value = folio2.numero
+            documentoIdSegundo.value = await guardarSegundoYVincular(documentoId, datosCompletos, vistaPreviaSegundaIncidencia.value, folio2)
         }
 
-        // Si viene de una tarea, se marca finalizada y se liga.
-        if (bitacoraId && documentoId) {
+        // Si viene de una tarea, se marca finalizada y se liga. En el lote
+        // no: esa tarea se cierra con el Oficio de compactación.
+        if (bitacoraId && documentoId && !lote.activo) {
             await finalizarBitacora(bitacoraId, documentoId)
         }
 
@@ -644,8 +765,17 @@ async function firmarDocumentoGenerado(
         throw new Error('No existe el documento guardado para firmar.')
     }
 
-    return await firmarYSubirDocumentoEspecial(documentoId,htmlPersonalizado)
+    return await firmarYSubirDocumentoEspecial(documentoId, htmlPersonalizado)
 }
+
+function mensajeAlGenerar() {
+    if (!esDocRH.value) return 'Documento generado correctamente'
+    return usuarioActivo?.rol === 'admin'
+        ? 'Documento generado, firmado y enviado a Recursos Humanos'
+        : 'Documento generado y enviado al Jefe de Depto para su revisión'
+}
+
+
 
 function avisarYRedirigir() {
     const destino = destinoAlGuardarEdicion.value
@@ -662,12 +792,18 @@ function avisarYRedirigir() {
         alert('Documento actualizado correctamente')
         router.push(usuarioActivo?.rol === 'admin' ? '/bitacora' : '/bitacorasecapo')
     } else {
-        alert('Documento generado correctamente')
+        alert(mensajeAlGenerar())
         router.push(usuarioActivo?.rol === 'admin' ? '/bitacora' : '/bitacorasecapo')
     }
 }
 
 function debeFirmarDocumentoAhora() {
+
+
+    // si va a rh y lo hizo sec/apo se firma hasta  que jefe aprueab
+    if (esDocRH.value && usuarioActivo?.rol !== 'admin') {
+        return false
+    }
 
     // Comisión Externa nunca se firma al crear.
     if (subtipo.value === 'comision-externa') {
@@ -684,8 +820,14 @@ function debeFirmarDocumentoAhora() {
         return false
     }
 
-    // para generar constnacia y no marque mensaje de rrro por haora
-    if (tipo === 'constancia-tutorado') {
+    // para generar constnacia y no marque mensaje de errro por haora
+    if (tipo === TIPO_CONSTANCIAS) {
+        return false
+    }
+
+
+    // concentrado compactacion sin firma por ahora 
+    if (tipo === TIPO_OFICIO_COMPACTACION) {
         return false
     }
 
@@ -694,9 +836,24 @@ function debeFirmarDocumentoAhora() {
     return true
 }
 
-async function generarDocumento() {
-    try {
-        cargando.value = true
+// revisar si falta algo antes d eguardar sino retornar falso y aviso
+function listoParaGenerar() {
+    let falta = ''
+    if (tipo === TIPO_OFICIO_COMPACTACION) falta = motivoNoGenerar(campos.value)
+    else if (tipo === TIPO_CONSTANCIAS) falta = motivoNoGenerarConstancia(campos.value, subtipo.value)
+    else if (tipo === 'mantenimiento' && !campos.value.tipo_servicio) falta = 'Elige si el servicio es Interno o Externo.'
+    else if (tipo === 'mantenimiento' && !cabeEnUnaHoja.value) falta = 'El texto ya no cabe en una hoja (junto con la firma, la nota de copia y la leyenda). Acorta la descripción o el motivo.'
+    if (falta) alert(falta)
+    return !falta
+}
+
+
+async function guardarFirmarYEnviar() {
+
+            
+        if (subtipo.value === 'memorandum-compactacion-horario' && !idEdicion) {
+            campos.value.enviar_rh = !lote.activo
+        }
 
         const documentoId = await guardarEnHistorial()
 
@@ -708,10 +865,10 @@ async function generarDocumento() {
 
         if (debeFirmarDocumentoAhora()) {
 
-        //Memorandum 1 principal
+            //Memorandum 1 principal
             await firmarDocumentoGenerado(documentoId)
 
-        //Memorandum 2
+            //Memorandum 2
             // Solamente para Solventación de Faltas
             // con más de una incidencia
             if (
@@ -726,6 +883,21 @@ async function generarDocumento() {
             }
         }
 
+
+        if (esDocRH.value && usuarioActivo?.rol === 'admin') {
+            for (const id of [documentoId, documentoIdSegundo.value].filter(Boolean)) {
+                await enviarDocumentoARH(id)
+            }
+        }
+
+        return documentoId
+}
+
+async function generarDocumento() {
+    if (!listoParaGenerar()) return
+    try {
+        cargando.value = true
+        await guardarFirmarYEnviar()
         avisarYRedirigir()
 
     } catch (error) {
@@ -747,6 +919,7 @@ async function generarDocumento() {
 
 
 async function imprimirDocumento() {
+    if (!listoParaGenerar()) return
     try {
         cargando.value = true
 
@@ -765,7 +938,7 @@ async function imprimirDocumento() {
         imprimirConNombre(subtipo.value || tipo, campos.value)  //no quitar ,es para  guardar el doc con nombre
 
         avisarYRedirigir()
-        
+
     } catch (error) {
         console.error('Error al generar, firmar e imprimir:', error)
 
@@ -790,12 +963,10 @@ async function imprimirDocumento() {
 
 
                     <h5 class="mb-4">
-                        <i class="bi bi-file-earmark-plus me-2"></i>
                         {{ plantilla?.nombre || 'Nuevo Documento' }}
                     </h5>
 
-                    <div v-if="idEdicion" class="alert alert-warning py-2 mb-3">
-                        <i class="bi bi-pencil-square me-1"></i>
+                    <div v-if="idEdicion" class="alert alert-success py-2 mb-3">
                         <template v-if="destinoAlGuardarEdicion">
                             Estás corrigiendo un documento ya existente. {{ destinoAlGuardarEdicion.avisoAntes }}
                         </template>
@@ -806,7 +977,7 @@ async function imprimirDocumento() {
                     </div>
 
                     <div v-if="tareaBitacora" class="alert alert-info py-2 mb-3">
-                        <p class="mb-1 fw-semibold"><i class="bi bi-clipboard-check me-1"></i>Tarea asignada — {{
+                        <p class="mb-1 fw-semibold">Tarea asignada: {{
                             tareaBitacora.tipo }}</p>
                         <p class="mb-1 small">
                             Fecha: {{ tareaBitacora.fecha }}
@@ -845,33 +1016,50 @@ async function imprimirDocumento() {
                     </template>
 
                     <!-- ── MEMORÁNDUM ── -->
+
                     <template v-else-if="tipo === 'memorandum'">
-                        <TipoMemorandum v-model="subtipo" />
-                        <template v-if="subtipo">
-                            <DatosDocumento :campos="campos" :id-edicion="idEdicion"
-                                :folio-mostrado-texto="folioMostradoTexto" :reservados-con-texto="reservadosConTexto"
-                                v-model:folio-seleccionado="folioSeleccionado"
-                                v-model:mostrar-reservados="mostrarReservados" fecha-primero />
-                            <BuscarDocente v-model:busqueda-persona="busquedaPersona" :sugerencias="sugerencias"
-                                :mostrar-sugerencias="mostrarSugerencias" @buscar="buscarEnBD"
-                                @seleccionar="seleccionarPersona" />
-                            <CompactacionHorario v-if="subtipo === 'memorandum-compactacion-horario'"
+                        <!-- Lote de compactación ya generado: resumen y siguientes pasos -->
+                        <ResultadoLote v-if="esLote && lote.terminado" :lote="lote" :campos="campos"
+                        :ruta-bitacora="rutaBitacora" :bitacora-id="bitacoraId" />
+                        <template v-else>
+                            <TipoMemorandum v-model="subtipo" />
+                            <template v-if="subtipo">
+                                <ModoDocentes v-if="subtipo === 'memorandum-compactacion-horario' && !idEdicion"
+                                :model-value="lote.activo" @update:model-value="cambiarModoLote" />
+                            
+                                <DatosDocumento :campos="campos" :id-edicion="idEdicion"
+                                    :folio-mostrado-texto="esLote ? (lote.rangoFolios || 'Elige a los docentes') : folioMostradoTexto"
+                                    :reservados-con-texto="esLote ? [] : reservadosConTexto"
+                                    v-model:folio-seleccionado="folioSeleccionado"
+                                    v-model:mostrar-reservados="mostrarReservados" fecha-primero />
+                                <BuscarDocente v-if="!esLote" v-model:busqueda-persona="busquedaPersona"
+                                    :sugerencias="sugerencias" :mostrar-sugerencias="mostrarSugerencias"
+                                    @buscar="buscarEnBD" @seleccionar="seleccionarPersona" />
+
+                                    <CompactacionHorario v-if="subtipo === 'memorandum-compactacion-horario' && !esLote"
                                 :campos="campos" />
-                            <SolventacionFaltas v-if="subtipo === 'memorandum-solventacion-faltas'" :campos="campos"
-                                :id-edicion="idEdicion" :texto-pareja-edicion="textoParejaEdicion"
-                                v-model:combinar-incidencias="combinarIncidencias"
-                                :folio-mostrado-texto2="folioMostradoTexto2"
-                                v-model:folio-seleccionado2="folioSeleccionado2"
-                                :reservados-con-texto2="reservadosConTexto2"
-                                v-model:mostrar-reservados2="mostrarReservados2" v-model:fecha2="fecha2"
-                                v-model:motivo2="motivo2" />
-                            <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
-                                @generar="generarDocumento" />
+                                <LoteDocentes v-if="esLote" :lote="lote" :docentes="listaDocentes" />
+                          
+
+                                <SolventacionFaltas v-if="subtipo === 'memorandum-solventacion-faltas'" :campos="campos"
+                                    :id-edicion="idEdicion" :texto-pareja-edicion="textoParejaEdicion"
+                                    v-model:combinar-incidencias="combinarIncidencias"
+                                    :folio-mostrado-texto2="folioMostradoTexto2"
+                                    v-model:folio-seleccionado2="folioSeleccionado2"
+                                    :reservados-con-texto2="reservadosConTexto2"
+                                    v-model:mostrar-reservados2="mostrarReservados2" v-model:fecha2="fecha2"
+                                    v-model:motivo2="motivo2" v-model:tipo2="tipo2"
+                                    v-model:fecha-incidencia2="fechaIncidencia2" />
+                                <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran"
+                                    :cargando="cargando || lote.generando"
+                                    :texto="esLote ? `Generar ${lote.total || ''} memos` : 'Generar Documento'"
+                                    @generar="esLote ? generarLote() : generarDocumento()" />
+                            </template>
+                            <div v-else class="text-muted text-center py-3">
+                                <i class="bi bi-arrow-up-circle" style="font-size:2rem"></i>
+                                <p class="mt-2">Selecciona el tipo de memorándum para continuar</p>
+                            </div>
                         </template>
-                        <div v-else class="text-muted text-center py-3">
-                            <i class="bi bi-arrow-up-circle" style="font-size:2rem"></i>
-                            <p class="mt-2">Selecciona el tipo de memorándum para continuar</p>
-                        </div>
                     </template>
 
                     <!-- ── ALUMNOS: Residencia y SS (Aceptación / Terminación) ── -->
@@ -907,13 +1095,10 @@ async function imprimirDocumento() {
                             :mostrar-sugerencias="mostrarSugerencias" @buscar="buscarEnBD"
                             @seleccionar="seleccionarPersona" />
                         <DatosAlumnoDocumento :campos="campos" />
-                        <LiberacionProyecto
-                                :campos="campos"
-                                :sugerencias-firmantes="sugerenciasFirmantes"
-                                :campo-firmante-activo="campoFirmanteActivo"
-                                :buscar-firmantes-liberacion="buscarFirmantesLiberacion"
-                                :seleccionar-firmante-liberacion="seleccionarFirmanteLiberacion"
-                            />
+                        <LiberacionProyecto :campos="campos" :sugerencias-firmantes="sugerenciasFirmantes"
+                            :campo-firmante-activo="campoFirmanteActivo"
+                            :buscar-firmantes-liberacion="buscarFirmantesLiberacion"
+                            :seleccionar-firmante-liberacion="seleccionarFirmanteLiberacion" />
                         <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
                             @generar="generarDocumento" />
                     </template>
@@ -932,18 +1117,36 @@ async function imprimirDocumento() {
                             @generar="generarDocumento" />
                     </template>
 
-                                        <!-- ──constancia creditos tuto ── -->
-                    <template v-else-if="tipo === 'constancia-tutorado'">
+                    <!-- constancia de creditos -->
+                    <template v-else-if="tipo === 'constancia-creditos'">
+                        <TipoConstancia v-model="subtipo" />
+                        <template v-if="subtipo">
+                            <DatosDocumento :campos="campos" :id-edicion="idEdicion"
+                                :folio-mostrado-texto="folioMostradoTexto" :reservados-con-texto="reservadosConTexto"
+                                v-model:folio-seleccionado="folioSeleccionado"
+                                v-model:mostrar-reservados="mostrarReservados" />
+                            <BuscarAlumno v-model:busqueda-persona="busquedaPersona" :sugerencias="sugerencias"
+                                :mostrar-sugerencias="mostrarSugerencias" @buscar="buscarEnBD"
+                                @seleccionar="seleccionarPersona" />
+                            <DatosAlumnoDocumento :campos="campos" />
+                            <FormularioConstanciaTutorado :campos="campos" :lista-docentes="listaDocentes"
+                                :jefe="buscarPorClave('jefe_depto')" :es-actividad="subtipo === SUBTIPO_ACTIVIDAD" />
+                            <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
+                                @generar="generarDocumento" />
+                        </template>
+                        <div v-else class="text-muted text-center py-3">
+                            <i class="bi bi-arrow-up-circle" style="font-size:2rem"></i>
+                            <p class="mt-2">Selecciona Tutoría o Actividad complementaria para continuar</p>
+                        </div>
+                    </template>
+
+                    <!-- concentrado rh compactacion-->
+                    <template v-else-if="tipo === 'oficio-compactacion'">
                         <DatosDocumento :campos="campos" :id-edicion="idEdicion"
                             :folio-mostrado-texto="folioMostradoTexto" :reservados-con-texto="reservadosConTexto"
                             v-model:folio-seleccionado="folioSeleccionado"
-                            v-model:mostrar-reservados="mostrarReservados" />
-                        <BuscarAlumno v-model:busqueda-persona="busquedaPersona" :sugerencias="sugerencias"
-                            :mostrar-sugerencias="mostrarSugerencias" @buscar="buscarEnBD"
-                            @seleccionar="seleccionarPersona" />
-                        <DatosAlumnoDocumento :campos="campos" />
-                        <FormularioConstanciaTutorado :campos="campos" :lista-docentes="listaDocentes"
-                            :jefe="buscarPorClave('jefe_depto')" />
+                            v-model:mostrar-reservados="mostrarReservados" fecha-primero />
+                        <OficioCompactacion :campos="campos" :config="config" />
                         <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
                             @generar="generarDocumento" />
                     </template>
@@ -966,13 +1169,13 @@ async function imprimirDocumento() {
                             :folio-mostrado-texto="folioMostradoTexto" :reservados-con-texto="reservadosConTexto"
                             v-model:folio-seleccionado="folioSeleccionado"
                             v-model:mostrar-reservados="mostrarReservados" :con-fecha="false" />
-                        <FormularioMantenimiento :campos="campos" />
+                        <FormularioMantenimiento :campos="campos" :cabe-en-hoja="cabeEnUnaHoja" />
                         <PieDocumento :campos="campos" :personas="personasJefeDeptoYElaboran" :cargando="cargando"
                             @generar="generarDocumento" />
                     </template>
 
-                    <button v-if="plantilla || subtipo" class="btn btn-danger w-100 mt-2" @click="limpiarFormulario"
-                        type="button">
+                    <button v-if="(plantilla || subtipo) && !(esLote && lote.terminado)"
+                        class="btn btn-danger w-100 mt-2" @click="limpiarFormulario" type="button">
                         <i class="bi bi-trash me-2"></i>Limpiar formulario
                     </button>
 
@@ -983,12 +1186,24 @@ async function imprimirDocumento() {
             <!-- COLUMNA DERECHA: VISTA PREVIA  /src/assets/images/logo-encabezado.png -->
             <div class="col-12 col-lg-7 col-preview-sticky">
                 <div class="panel p-4">
-                    <h6 class="text-muted mb-3">
-                        <i class="bi bi-eye me-2"></i>Vista previa
-                    </h6>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h6 class="text-muted m-0">
+                            <i class="bi bi-eye me-2"></i>Vista previa
+                        </h6>
+                        <NavegadorLote v-if="esLote" :lote="lote" />
+                    </div>
                     <div class="preview-scale-outer"
                         :class="{ 'combo-wrapper': combinarIncidencias && subtipo === 'memorandum-solventacion-faltas' }">
-                        <div class="bg-white border rounded documento-carta" :style="estiloDocumento">
+
+                        <!-- compactacion oficio-->
+                        <VistaOficioCompactacion v-if="tipo === 'oficio-compactacion'" :filas="filasOficioCompactacion"
+                            :fecha="campos.fecha_documento" :oficio="numeroOficioCompleto()"
+                            :destinatario="buscarDestinatarioPorClave('jefe_recursos_humanos')"
+                            :jefe="buscarPorClave('jefe_depto')" :nota-ccp="notaCcp" :header-img="headerImgActual"
+                            :pie-img="pieImgActual" :estilo="estiloDocumento" />
+                        <div v-else ref="hojaPreview" class="bg-white border rounded documento-carta"
+                            :style="estiloDocumento">
+
                             <!-- Encabezado institucional -->
                             <div class="w-100 mb-3 pb-2  encabezado-doc " v-if="tipo !== 'mantenimiento'">
                                 <img :src="headerImgActual" class="header-doc-img"
@@ -999,7 +1214,8 @@ async function imprimirDocumento() {
 
                             <!-- Vista previa normal -->
 
-        <div v-if="plantilla && tipo !== 'liberacion-proyecto' && tipo !== 'mantenimiento' && tipo !== 'constancia-tutorado'">
+                            <div
+                                v-if="plantilla && tipo !== 'liberacion-proyecto' && tipo !== 'mantenimiento' && tipo !== 'constancia-creditos'">
 
                                 <!-- Encabezado alumnos (residencia y SS) -->
                                 <template v-if="tipo === 'aceptacion' || tipo === 'terminacion'">
@@ -1023,7 +1239,7 @@ async function imprimirDocumento() {
                                                 buscarDestinatarioPorClave('jefa_gestion_vinculacion')?.nombre
                                             }}</strong><br>
                                         <strong>{{ buscarDestinatarioPorClave('jefa_gestion_vinculacion')?.puesto
-                                            }}</strong><br>
+                                        }}</strong><br>
                                         <strong>PRESENTE</strong>
                                     </div>
                                 </template>
@@ -1037,7 +1253,7 @@ async function imprimirDocumento() {
                                                 {{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.nombre
                                                 }}</strong><br>
                                             <strong>{{ buscarDestinatarioPorClave('jefe_recursos_humanos')?.puesto
-                                                }}</strong>
+                                            }}</strong>
                                         </div>
                                         <div class="text-end texto-encabezado">
                                             {{ CIUDAD_FECHA }} <span class="fecha-resaltada">{{
@@ -1091,9 +1307,7 @@ async function imprimirDocumento() {
                                     <div class="texto-lema-secundario">
                                         Cultura, Ciencia y Tecnología para la Superación de México®
                                     </div>
-                                    <br>
 
-                                    <br>
                                     <template
                                         v-if="subtipo === 'comision-externa' || (subtipo === 'comision-interna' && campos.para_jefe_depto)">
                                         <strong>{{ buscarPorClave(subtipo === 'comision-interna' ? 'subdirectora' :
@@ -1117,12 +1331,13 @@ async function imprimirDocumento() {
                                 </div>
                             </div>
 
-                            <!-- Vista previa Constancia de tutorado -->
-                            <VistaConstanciaTutorado v-else-if="plantilla && tipo === 'constancia-tutorado'"
+                            <!-- Vista previa Constancia  -->
+                            <VistaConstanciaTutorado v-else-if="plantilla && tipo === 'constancia-creditos'"
                                 :campos="campos" :cuerpo="vistaPrevia" :oficio="numeroOficioCompleto()"
                                 :asunto="plantilla?.asunto"
                                 :destinatario="buscarDestinatarioPorClave('jefa_servicios_escolares')"
-                                :jefe="buscarPorClave('jefe_depto')" :nota-ccp="notaCcp" />
+                                :jefe="buscarPorClave('jefe_depto')" :nota-ccp="notaCcp"
+                                :es-actividad="subtipo === SUBTIPO_ACTIVIDAD" />
 
 
                             <!-- Vista previa Liberación de Proyecto -->
@@ -1144,7 +1359,7 @@ async function imprimirDocumento() {
                                     <strong>{{ buscarDestinatarioPorClave('jefa_division_estudios')?.grado }} {{
                                         buscarDestinatarioPorClave('jefa_division_estudios')?.nombre }}</strong><br>
                                     <strong>{{ buscarDestinatarioPorClave('jefa_division_estudios')?.puesto
-                                        }}</strong><br>
+                                    }}</strong><br>
                                     <strong>PRESENTE</strong>
                                 </div>
                                 <p class="mb-3 texto-cuerpo">
@@ -1215,6 +1430,7 @@ async function imprimirDocumento() {
                             </div>
 
 
+
                             <!-- mantenimiento -->
                             <div v-else-if="tipo === 'mantenimiento'" class="mantenimiento-form texto-cuerpo"
                                 style="color: #000;">
@@ -1225,14 +1441,14 @@ async function imprimirDocumento() {
                                     <tr>
                                         <td rowspan="3" class="doc-celda-iso"
                                             style="width:15%; text-align:center; vertical-align:middle;">
-                                            <img src="/src/assets/images/itch.png" alt="LOGO"
+                                            <img src="/images/documentos/itch.png" alt="LOGO"
                                                 style="max-width:100%; max-height:140px;" />
                                         </td>
 
                                         <td rowspan="2" class="doc-celda-iso" style="width:55%; vertical-align:top;">
                                             <strong>Nombre del Documento:</strong> {{
                                                 plantilla?.encabezadoIso?.nombreDocumento ||
-                                                "Formato para Solicitud de Mantenimiento Correctivo y/o Preventivo Interno o Externo" }}
+                                                "Formato para Solicitud de Mantenimiento Correctivo y/o Preventivo Interno o  Externo" }}
                                         </td>
                                         <td class="doc-celda-iso" style="width:30%;">
                                             <strong>Fecha de Aprobación:</strong> {{
@@ -1430,6 +1646,7 @@ async function imprimirDocumento() {
             </div>
 
         </div>
+        <ProgresoLote :lote="lote" />
     </AdminLayout>
 </template>
 

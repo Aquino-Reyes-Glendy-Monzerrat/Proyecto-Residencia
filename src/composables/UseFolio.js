@@ -46,16 +46,15 @@ export function useFolio(categoriaRef, configRef) {
     // Gasta el folio elegido: si es automático avanza el contador,
     // si es reservado lo marca como usado. Devuelve el número ya
     // rellenado ("084"), listo para guardar en campos.numero_oficio.
-    async function resolverNumeroFolio() {
+   async function resolverNumeroFolio() {
         if (folioSeleccionado.value === 'automatico') {
             const resultado = await consumirSiguienteFolio(categoriaRef.value)
-            return rellenarFolio(resultado.numero)
+            return { ...resultado, numero: rellenarFolio(resultado.numero) }
         }
         const numero = folioSeleccionado.value
-        await marcarFolioReservado(categoriaRef.value, numero, true)
-        return rellenarFolio(numero)
+        const folio = await marcarFolioReservado(categoriaRef.value, numero, true)
+        return { numero: rellenarFolio(numero), anio: folio.anio, prefijo: folio.prefijo_default }
     }
-
 
     return {
         folioSeleccionado,

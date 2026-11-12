@@ -3,9 +3,9 @@
 <script setup>
 import AdminLayout from '../layout/AdminLayout.vue'
 import { ref, onMounted } from 'vue'
-import { getDocumentosPorEstado, autorizarDocumento, rechazarDocumento, getConfiguracion,getFirmantes } from '../services/api.js'
+import { getDocumentosPorEstado, autorizarDocumento, rechazarDocumento, getConfiguracion } from '../services/api.js'
 import { useSesion } from '../composables/UseSesion.js'
-import { folioRealDe as _folioRealDe } from '@/utils/folio.js'
+import { folioRealDe as _folioRealDe, folioActual } from '@/utils/folio.js'
 import {useFirmasDocumento} from '../composables/useFirmasDocumento.js'
 
 
@@ -34,8 +34,7 @@ const config = ref(null)
 
 // num oficio
 function folioRealDe(doc) {
-    const prefijo = config.value?.folio?.prefijo_default || 'P'
-    const anio = config.value?.folio?.anio || new Date().getFullYear()
+    const { prefijo, anio } = folioActual(config.value)
     return _folioRealDe(doc, prefijo, anio)
 }
 

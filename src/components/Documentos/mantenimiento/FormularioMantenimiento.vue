@@ -1,5 +1,21 @@
 <script setup>
-defineProps({ campos: { type: Object, required: true } })
+
+import { watch } from 'vue'
+
+const props = defineProps({
+    campos: { type: Object, required: true },
+    cabeEnHoja: { type: Boolean, default: true },
+})
+
+
+watch(() => props.cabeEnHoja, (cabe, cabia) => {
+    if (cabia && !cabe) {
+        alert('El texto ya no cabe en una hoja junto con la firma, la nota de copia y la leyenda. Acórtalo para poder generar.')
+    }
+})
+
+
+
 </script>
 
 <template>
@@ -25,4 +41,5 @@ defineProps({ campos: { type: Object, required: true } })
         <label class="form-label">Motivo por el cual se solicita proveedor externo</label>
         <textarea class="form-control" rows="2" v-model="campos.motivo_proveedor_externo"></textarea>
     </div>
+
 </template>

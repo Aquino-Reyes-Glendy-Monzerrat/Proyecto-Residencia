@@ -1,6 +1,8 @@
 <script setup>
 import AdminLayout from '@/layout/AdminLayout.vue';
 import { ref, computed, onMounted } from 'vue'
+import Paginacion from '@/components/Paginacion.vue'
+import { usePaginacion } from '@/composables/usePaginacion.js'
 import { useRouter } from 'vue-router'
 import { Modal } from 'bootstrap'
 import {
@@ -10,15 +12,20 @@ import {
 } from '../services/api.js'
 import { useSesion } from '../composables/UseSesion.js'
 
-import { formatearFolio } from '@/utils/folio.js'
+import { normalizarBusqueda, coincideBusqueda } from '@/utils/busquedaBitacora.js'
+import { folioActual } from '@/utils/folio.js'
 import { useImprimirCombinado } from '@/composables/useImprimirCombinado.js'
 import ComboImpresion from '@/components/ComboImpresion.vue'
 import ImpresionOficiosTutorias from '@/components/Documentos/tutorias/ImpresionOficiosTutorias.vue'
-import { enCorreccion, esComisionConCadena, autorizadoPorCadena, esOficioDeLote } from '@/utils/estadoDocumento.js'
-import { TIPOS_TAREA } from '@/utils/tiposTarea.js'
+import {
+    enCorreccion, esComisionConCadena, esOficioDeLote,
+    esParaRH, esperaEnvioRH, enviadoARH, cicloCerrado, estadoRH,
+} from '@/utils/estadoDocumento.js'
+import { TIPOS_TAREA, esTareaAbierta } from '@/utils/tiposTarea.js'
 import { useParejaMemo } from '@/composables/useParejaMemo.js'
 import { useNavegacionBitacora } from '@/composables/useNavegacionBitacora.js'
 import { TIPOS_DOCUMENTO, etiquetaTipo } from '@/utils/tiposDocumento.js'
+import { useFiltrosGuardados } from '@/composables/useFiltrosGuardados.js'
 import { aFechaISO, fechaHoy } from '@/utils/fechas.js'
 
 const router = useRouter()
@@ -67,18 +74,15 @@ async function cargarTodo() {
         bitacora.filter(b => b.documentoId).map(b => [b.documentoId, b])
     )
 
-    const config = await getConfiguracion()
-    prefijoFolio.value = config.folio?.prefijo_default || 'P'
-    anioFolio.value = config.folio?.anio || new Date().getFullYear()
+    const { prefijo, anio } = folioActual(await getConfiguracion())
+    prefijoFolio.value = prefijo
+    anioFolio.value = anio
 
     cargando.value = false
 }
 onMounted(cargarTodo)
 
-function nombreUsuario(id) {
-    const u = usuarios.value.find(u => String(u.id) === String(id))
-    return u?.nombre || '—'
-}
+
 
 // Alumno para SS/Residencia/Liberación, docente/destinatario para
 // el resto. Documentos viejos sin "campos" quedan en "—".
@@ -100,8 +104,10 @@ function faseDe(doc) {
             return 'en_revision'
         }
         return doc.estado // pendiente_subdirectora / pendiente_director / autorizado
-    }
+        }
+    if (enviadoARH(doc)) return 'rh'
     if (enCorreccion(doc)) return 'c'
+    if (esperaEnvioRH(doc)) return doc.rechazadoPor ? 'r' : 'en_revision' // r: lo rechazó RH
     if (doc.revisionJefeDepto !== 'aprobado' && doc.solicitoRevision) return 'en_revision'
     return 'normal'
 }
@@ -133,6 +139,16 @@ function infoEstado(doc) {
         }
         return ESTADOS[doc.estado] || null
     }
+
+        if (enviadoARH(doc)) {
+        const { texto, color } = estadoRH(doc)
+        return { texto, clase: `text-bg-${color}` }
+    }
+    if (esperaEnvioRH(doc)) {
+        if (doc.rechazadoPor) return { texto: 'Rechazado', clase: 'text-bg-danger' }
+        return { texto: 'En revisión\n(Jefe de Depto)', clase: 'text-bg-info' }
+    }
+
     // Para normales, "estado" casi siempre es "generado" — la única
     // excepción real es "cancelado".
     if (doc.estado === 'cancelado') return { texto: 'Cancelado', clase: 'text-bg-secondary' }
@@ -164,9 +180,9 @@ async function enviarARevision(doc) {
 
 
 // ── Tareas de Bitácora asignadas a ella (sin importar quién las creó)
-const TAREA_ABIERTA = ['pendiente', 'elaboracion']
+
 const tareasAbiertas = computed(() =>
-    entradas.value.filter(e => String(e.asignadoA) === String(usuario.id) && TAREA_ABIERTA.includes(e.estado) && !e.documentoId)
+        entradas.value.filter(e => String(e.asignadoA) === String(usuario.id) && esTareaAbierta(e))
 )
 const tareasEliminadas = computed(() =>
     entradas.value.filter(e => String(e.asignadoA) === String(usuario.id) && e.estado === 'eliminado')
@@ -203,6 +219,7 @@ const conteos = computed(() => ({
     r: documentos.value.filter(d => loVeo(d) && faseDe(d) === 'r').length,
     c: documentos.value.filter(d => loVeo(d) && faseDe(d) === 'c').length,
     autorizado: documentos.value.filter(d => loVeo(d) && faseDe(d) === 'autorizado').length,
+    rh: documentos.value.filter(d => loVeo(d) && faseDe(d) === 'rh').length,
     x: documentos.value.filter(d => loVeo(d) && faseDe(d) === 'x').length,
     eliminado: tareasEliminadas.value.length,
 }))
@@ -210,6 +227,18 @@ const conteos = computed(() => ({
 function toggleStage(valor) {
     activeStage.value = activeStage.value === valor ? null : valor
 }
+
+// Los filtros siguen puestos al volver de Ver/Editar/Generar o al recargar
+const pagina = ref(1)
+const { limpiar: limpiarFiltros, hayFiltros } = useFiltrosGuardados(`filtros-bitacora-${usuario?.id}`, {
+    fase: { valor: activeStage, vacio: null, permitidos: ['tareas', 'en_revision', 'r', 'autorizado','rh', 'c', 'x'] },
+    tipo: { valor: filtroTipo, permitidos: TIPOS_DOCUMENTO.map(t => t.valor) },
+    creador: { valor: creadorFiltro, vacio: 'todos', permitidos: ['todos', 'mi', 'admin'] },
+    q: { valor: busqueda },
+    desde: { valor: filtroFechaInicio, esFecha: true },
+    hasta: { valor: filtroFechaFin, esFecha: true },
+    pagina: { valor: pagina, vacio: 1, esNumero: true },
+})
 
 const filasVisibles = computed(() => {
     if (activeStage.value === 'eliminado') {
@@ -236,17 +265,14 @@ const filasVisibles = computed(() => {
     if (filtroTipo.value) {
         filas = filas.filter(f => f.tipo === filtroTipo.value)
     }
-    if (busqueda.value.trim()) {
-        const q = busqueda.value.trim().toLowerCase()
-        filas = filas.filter(f => {
-            const folio = (f.folio || '').toLowerCase()
-            const nombre = (personaRelevante(f) || '').toLowerCase()
-            const oficioTexto = f.campos?.numero_oficio
-                ? formatearFolio(f.campos.numero_oficio, prefijoFolio.value, anioFolio.value).toLowerCase()
-                : ''
-            const folioMantenimiento = (f.campos?.folio_mantenimiento || '').toLowerCase()
-            return folio.includes(q) || nombre.includes(q) || oficioTexto.includes(q) || folioMantenimiento.includes(q)
-        })
+        
+    const q = normalizarBusqueda(busqueda.value)
+    if (q) {
+        filas = filas.filter(f => coincideBusqueda(f, q, {
+            nombre: personaRelevante(f),
+            prefijo: prefijoFolio.value,
+            anio: anioFolio.value,
+        }))
     }
     if (filtroFechaInicio.value || filtroFechaFin.value) {
         filas = filas.filter(f => {
@@ -257,17 +283,18 @@ const filasVisibles = computed(() => {
         })
     }
     // Ya llega ordenado desde cargarTodo() — filter()/map()
-    // preservan el orden, no hace falta ordenar de nuevo.
+      // preservan el orden, no hace falta ordenar de nuevo.
     return filas
 })
 
-function limpiarFiltros() {
-    filtroFechaInicio.value = ''
-    filtroFechaFin.value = ''
-    filtroTipo.value = ''
-    activeStage.value = null
-    creadorFiltro.value = 'todos'
-}
+
+const POR_PAGINA = 15
+const { totalPaginas, visibles: filasPagina } = usePaginacion(filasVisibles, POR_PAGINA, {
+    pagina,
+    reiniciarCon: () => [activeStage.value, filtroTipo.value, creadorFiltro.value, busqueda.value, filtroFechaInicio.value, filtroFechaFin.value],
+})
+
+
 
 const { comboImprimir, imprimirCombinado } = useImprimirCombinado()
 
@@ -282,15 +309,13 @@ const mostrarOficiosTutorias = ref(false)
 // al editar un compartido se manda a revisión del Jefe de Depto
 // (ver destinoAlGuardarEdicion en NuevoDocumento.vue).
 // Cancelar/Eliminar siguen exclusivos del Admin/Jefe de Depto.
-function fueAsignada(doc) {
-    return !!bitacoraPorDocumentoId.value[doc.id]
-}
+
 function puedeEditar(doc) {
     if (!doc.tipoRuta) return false
     // Tutorías: solo se corrige desde el módulo Tutorías (ver esOficioDeLote).
     if (esOficioDeLote(doc)) return false
     // Autorizado ya cerró su ciclo — tampoco lo edita el Admin.
-    if (autorizadoPorCadena(doc)) return false
+        if (cicloCerrado(doc)) return false
         if (usuario.rol === 'admin') return true
     return esMio(doc) || esCompartido(doc)
 }
@@ -305,6 +330,7 @@ function puedeEliminar(doc) {
     if (doc.tipo === 'comision-externa' || (doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto)) return false
     if (esCompartido(doc)) return false
     if (usuario.rol === 'admin') return true
+    if (doc.enviadoRH) return false
     if (!esMio(doc)) return false
     // Si la tarea es de ella misma, no hay instrucción del Admin que
     // proteger — solo se bloquea si la tarea es de alguien más.
@@ -330,6 +356,7 @@ function puedeCancelar(doc) {
     if (doc.estado === 'cancelado') return false
     if (esCompartido(doc)) return false
     if (usuario.rol === 'admin') return true
+    if (enviadoARH(doc)) return false
     return esMio(doc)
 }
 async function cancelarDoc(doc) {
@@ -449,7 +476,7 @@ async function borrarTarea(entrada) {
                     <button v-if="oficiosTutoriasCompartidos.length" type="button" class="btn btn-outline-primary btn-sm"
                         @click="mostrarOficiosTutorias = true" title="Ver e imprimir juntos los oficios de Tutorías que te compartieron">
                         <i class="bi bi-printer me-1"></i> Oficios Tutorías
-                        <span class="badge text-bg-primary ms-1">{{ oficiosTutoriasCompartidos.length }}</span>
+                       
                     </button>
                     </div>
 
@@ -480,6 +507,11 @@ async function borrarTarea(entrada) {
                             Autorizados <span class="badge bg-white text-dark ms-1">{{ conteos.autorizado }}</span>
                         </button>
                         <button type="button" class="btn btn-sm"
+                            :class="activeStage === 'rh' ? 'btn-primary' : 'btn-outline-primary'"
+                            @click="toggleStage('rh')" title="Enviados a Recursos Humanos">
+                            RH <span class="badge bg-white text-dark ms-1">{{ conteos.rh }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm"
                             :class="activeStage === 'x' ? 'btn-danger' : 'btn-outline-danger'"
                             @click="toggleStage('x')">
                             Cancelados <span class="badge bg-white text-dark ms-1">{{ conteos.x }}</span>
@@ -490,27 +522,36 @@ async function borrarTarea(entrada) {
                 <div class="d-flex flex-wrap align-items-end gap-2 mt-3 pt-3 border-top">
                     <div>
                         <label class="form-label small mb-1" style="min-width: 220px;">Buscar</label>
-                        <input type="text" class="form-control form-control-sm" placeholder="Número de oficio o nombre…"
-                            v-model="busqueda">
+                        
+                        <!--  resalta lo  filtrando -->
+                        <input type="text" class="form-control form-control-sm" placeholder="Folio, Nombre, No. Control…"
+                            v-model="busqueda" :class="{ 'filtro-activo': busqueda }">
                     </div>
                     <div>
                         <label class="form-label small mb-1">Fecha inicio</label>
-                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaInicio">
+                        
+                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaInicio"
+                            :class="{ 'filtro-activo': filtroFechaInicio }">
                     </div>
                     <div>
                         <label class="form-label small mb-1">Fecha fin</label>
-                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaFin">
+                        
+                        <input type="date" class="form-control form-control-sm" v-model="filtroFechaFin"
+                            :class="{ 'filtro-activo': filtroFechaFin }">
                     </div>
 
                     <div>
                         <label class="form-label small mb-1">Tipo de documento</label>
-                        <select class="form-select form-select-sm" v-model="filtroTipo">
+                        
+                        <select class="form-select form-select-sm" v-model="filtroTipo"
+                            :class="{ 'filtro-activo': filtroTipo }">
+
                             <option value="">Todos</option>
                             <option v-for="t in TIPOS_DOCUMENTO" :key="t.valor" :value="t.valor">{{ t.etiqueta }}
                             </option>
                         </select>
                     </div>
-                    <button type="button" class="btn btn-danger btn-sm" @click="limpiarFiltros">
+                    <button type="button" class="btn btn-danger btn-sm" :disabled="!hayFiltros" @click="limpiarFiltros">
                         <i class="bi bi-x-circle"></i> Limpiar filtros
                     </button>
                     <button type="button" class="btn btn-outline-danger btn-sm ms-auto" @click="eliminarTodo">
@@ -557,7 +598,7 @@ async function borrarTarea(entrada) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="fila in filasVisibles.filter(f => f.esTarea)" :key="'t' + fila.id">
+                            <tr v-for="fila in filasPagina.filter(f => f.esTarea)" :key="'t' + fila.id">
                                 <td class="text-muted small">—</td>
                                 <td><span class="text-muted small">{{ fila.fecha }}</span>
                                     <br><span class="text-muted small">caduca {{ fila.fechaCaducidad }}</span>
@@ -596,7 +637,7 @@ async function borrarTarea(entrada) {
                                 </td>
                             </tr>
 
-                            <tr v-for="doc in filasVisibles.filter(f => !f.esTarea)" :key="'d' + doc.id">
+                            <tr v-for="doc in filasPagina.filter(f => !f.esTarea)" :key="'d' + doc.id">
                                 <td class="text-muted small">{{ folioRealDe(doc) || doc.folio }}
                                     <template v-if="textoVinculado(doc)"><br><span class="text-info">Vinculado con {{
                                         textoVinculado(doc) }}</span></template>
@@ -628,7 +669,7 @@ async function borrarTarea(entrada) {
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         <button
-                                            v-if="doc.tipo !== 'comision-externa' && !(doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto) && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && !enCorreccion(doc) && !esOficioDeLote(doc)"
+                                            v-if="doc.tipo !== 'comision-externa' && !(doc.tipo === 'comision-interna' && doc.campos?.para_jefe_depto) && doc.estado !== 'cancelado' && !doc.solicitoRevision && doc.revisionJefeDepto !== 'aprobado' && !enCorreccion(doc) && !esOficioDeLote(doc) && !esParaRH(doc)"
                                             type="button" class="btn btn-sm btn-outline-warning"
                                             title="Enviar a revisión" @click="enviarARevision(doc)">
                                             <i class="bi bi-send"></i>
@@ -651,6 +692,9 @@ async function borrarTarea(entrada) {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div v-if="!cargando && filasVisibles.length" class="px-3 pb-2">
+                    <Paginacion v-model:pagina="pagina" :total="totalPaginas" :elementos="filasVisibles.length" :por-pagina="POR_PAGINA" />
                 </div>
             </section>
 
