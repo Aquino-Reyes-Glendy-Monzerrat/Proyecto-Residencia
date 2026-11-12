@@ -1,10 +1,10 @@
 import axios from "axios";
 import { generarHashFirma } from './hash.js'
 
-const BASE_URL = "http://localhost:3000";
+//const BASE_URL = "http://localhost:3000";
 
 //para conectar con render
-//const BASE_URL = 'https://proyecto-residencia.onrender.com'
+const BASE_URL = 'https://proyecto-residencia.onrender.com'
 
 // ─── BASE: operaciones comunes de cualquier colección ───
 // Si lo que se quiere borrar ya no existe (404), no es error: el
