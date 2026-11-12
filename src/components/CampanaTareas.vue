@@ -51,8 +51,7 @@ function mostrarAviso(lineas) {
 }
 
 const tareasNuevas = (n) => n === 1 ? '1 tarea nueva' : `${n} tareas nuevas`
-const porVencerTexto = (n) => n === 1 ? '1 tarea vencida o por vencer' : `${n} tareas vencidas o por vencer`
-
+const contar = (n, una, varias) => n === 1 ? `1 ${una}` : `${n} ${varias}`
 
 const CLAVE_AVISO = `aviso-tareas-${props.usuario.id}`
 
@@ -69,7 +68,10 @@ const unaVez = watch(cargado, (listo) => {
     unaVez()
     const lineas = []
     if (nuevas.value.length) lineas.push(`Tienes ${tareasNuevas(nuevas.value.length)}`)
-    if (porVencer.value.length) lineas.push(porVencerTexto(porVencer.value.length))
+    const vencidas = porVencer.value.filter(t => t.dias < 0).length
+    const proximas = porVencer.value.length - vencidas
+    if (vencidas) lineas.push(contar(vencidas, 'tarea vencida', 'tareas vencidas'))
+    if (proximas) lineas.push(contar(proximas, 'tarea por vencer', 'tareas por vencer'))
     if (lineas.length && !yaSeAviso()) mostrarAviso(lineas)
 })
 
